@@ -1,0 +1,61 @@
+#!/usr/bin/env -S java --source 25
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.YearMonth;
+
+enum Format {
+    FLAT("."),
+    NESTED("/");
+
+    String separator;
+
+    Format(String separator) {
+        this.separator = separator;
+    }
+
+    String format(YearMonth yearMonth) {
+        return "%d%s%02d".formatted(yearMonth.getYear(), this.separator, yearMonth.getMonthValue());
+    }
+}
+
+void main(String... args) {
+    var format = parseFormat(args);
+    var yearMonth = YearMonth.now();
+    var dirName = format.format(yearMonth);
+    var path = Path.of(dirName);
+
+    try {
+        Files.createDirectories(path);
+        System.out.println(path.toAbsolutePath());
+    } catch (Exception e) {
+        System.err.println("Failed to create directory: " + e.getMessage());
+        System.exit(1);
+    }
+}
+
+Format parseFormat(String[] args) {
+    if (args.length == 0) {
+        printUsage();
+        System.exit(1);
+    }
+    return switch (args[0]) {
+        case "-f", "--flat" -> Format.FLAT;
+        case "-n", "--nested" -> Format.NESTED;
+        default -> {
+            printUsage();
+            System.exit(1);
+            yield Format.FLAT;
+        }
+    };
+}
+
+void printUsage() {
+    System.err.println("""
+        Usage: zmkdir <format>
+
+        Formats:
+          -f, --flat     Create YYYY.MM directory (e.g., 2026.01)
+          -n, --nested   Create YYYY/MM directory (e.g., 2026/01)
+        """);
+}

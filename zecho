@@ -84,7 +84,7 @@ enum Log {
     }
 }
 
-void main (String[] args) {
+void main (String... args) {
     Log.info("zecho v0.0.1");
     if (args.length == 0) {
         Log.stop("Usage: zecho <text>");
