@@ -9,10 +9,75 @@ import java.awt.datatransfer.DataFlavor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+enum Log {
+
+    ERROR(Color.BRIGHT_RED, System.err),
+    USER(Color.BRIGHT_WHITE, System.out),
+    INFO(Color.BRIGHT_GREEN, System.out),
+    SYSTEM(Color.SKY_BLUE, System.out),
+    WARNING(Color.WARM_YELLOW, System.out),
+    DEBUG(Color.SOFT_PURPLE, System.out);
+
+    PrintStream out;
+
+    enum Color {
+        SOFT_GRAY("\033[38;5;246m"),
+        WARM_YELLOW("\033[38;5;220m"),
+        BRIGHT_BLUE("\033[38;5;33m"),
+        BRIGHT_WHITE("\033[38;5;255m"),
+        BRIGHT_RED("\033[38;5;196m"),
+        BRIGHT_GREEN("\033[38;5;46m"),
+        BRIGHT_YELLOW("\033[38;5;226m"),
+        SKY_BLUE("\033[38;5;39m"),
+        SOFT_PURPLE("\033[38;5;129m"),
+        BRIGHT_CYAN("\033[38;5;51m"),
+        BLACK_ON_WHITE("\033[38;5;232;48;5;255m");
+
+        String code;
+
+        Color(String code) {
+            this.code = code;
+        }
+    }
+
+    private final String value;
+    private final static String RESET = "\u001B[0m";
+
+    private Log(Color color, PrintStream out) {
+        this.value = (color.code + "%s" + RESET);
+        this.out = out;
+    }
+
+    public String formatted(String raw) {
+        return this.value.formatted(raw);
+    }
+
+    public void out(String message) {
+        var colored = formatted(message);
+        this.out.println(colored);
+    }
+
+    public static void error(String message) {
+        Log.ERROR.out(message);
+    }
+
+    public static void info(String message){
+        Log.INFO.out(message);
+    }
+
+    public static void system(String message){
+        Log.SYSTEM.out(message);
+    }
+
+    public static void stop(String message){
+        error(message);
+        System.exit(1);
+    }
+}
+
 void main(String... args) {
     if (args.length == 0) {
-        System.err.println("Usage: zcbs <filename>");
-        System.exit(1);
+        Log.user("Usage: zcbs <filename>");
     }
 
     var filename = args[0];
@@ -21,10 +86,9 @@ void main(String... args) {
 
     try {
         Files.writeString(path, content);
-        System.out.println("Clipboard saved to: " + path.toAbsolutePath());
+        Log.info("Clipboard saved to: " + path.toAbsolutePath());
     } catch (Exception e) {
-        System.err.println("Failed to write file: " + e.getMessage());
-        System.exit(1);
+        Log.stop("Failed to write file: " + e.getMessage());
     }
 }
 
@@ -33,8 +97,7 @@ String clipboardContent() {
         var clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
         return (String) clipboard.getData(DataFlavor.stringFlavor);
     } catch (Exception e) {
-        System.err.println("Failed to read clipboard: " + e.getMessage());
-        System.exit(1);
+        Log.stop("Failed to read clipboard: " + e.getMessage());
         return "";
     }
 }
