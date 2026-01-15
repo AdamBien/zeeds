@@ -1,0 +1,40 @@
+#!/usr/bin/env -S java --source 25
+
+/**
+ * zcbs - Zero dependencies Clipboard Saver
+ */
+
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+void main(String... args) {
+    if (args.length == 0) {
+        System.err.println("Usage: zcbs <filename>");
+        System.exit(1);
+    }
+
+    var filename = args[0];
+    var content = clipboardContent();
+    var path = Path.of(filename);
+
+    try {
+        Files.writeString(path, content);
+        System.out.println("Clipboard saved to: " + path.toAbsolutePath());
+    } catch (Exception e) {
+        System.err.println("Failed to write file: " + e.getMessage());
+        System.exit(1);
+    }
+}
+
+String clipboardContent() {
+    try {
+        var clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        return (String) clipboard.getData(DataFlavor.stringFlavor);
+    } catch (Exception e) {
+        System.err.println("Failed to read clipboard: " + e.getMessage());
+        System.exit(1);
+        return "";
+    }
+}
