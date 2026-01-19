@@ -1,5 +1,8 @@
 #!/usr/bin/env -S java --source 25
 
+/**
+ * Logging is based on https://github.com/AdamBien/zcl
+ */
 enum Log {
 
     ERROR(Color.BRIGHT_RED, System.err),
