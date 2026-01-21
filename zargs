@@ -1,0 +1,147 @@
+#!/usr/bin/env -S java --source 25
+
+/**
+ * zargs - Demonstrates idiomatic argument parsing in Java 25
+ *
+ * @see <a href="https://docs.oracle.com/en/java/javase/17/docs/specs/man/javac.html">javac Command (JDK 17)</a>
+ * @see <a href="https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html">java Command (JDK 21)</a>
+ */
+
+enum Log {
+
+    ERROR(Color.BRIGHT_RED, System.err),
+    USER(Color.BRIGHT_WHITE, System.out),
+    INFO(Color.BRIGHT_GREEN, System.out),
+    SYSTEM(Color.SKY_BLUE, System.out),
+    WARNING(Color.WARM_YELLOW, System.out),
+    DEBUG(Color.SOFT_PURPLE, System.out);
+
+    PrintStream out;
+
+    enum Color {
+        WARM_YELLOW("\033[38;5;220m"),
+        BRIGHT_WHITE("\033[38;5;255m"),
+        BRIGHT_RED("\033[38;5;196m"),
+        BRIGHT_GREEN("\033[38;5;46m"),
+        SKY_BLUE("\033[38;5;39m"),
+        SOFT_PURPLE("\033[38;5;129m");
+
+        String code;
+
+        Color(String code) {
+            this.code = code;
+        }
+    }
+
+    String value;
+    static final String RESET = "\u001B[0m";
+
+    Log(Color color, PrintStream out) {
+        this.value = color.code + "%s" + RESET;
+        this.out = out;
+    }
+
+    void out(String message) {
+        this.out.println(this.value.formatted(message));
+    }
+
+    static void info(String message) {
+        INFO.out(message);
+    }
+
+    static void user(String message) {
+        USER.out(message);
+    }
+
+    static void error(String message) {
+        ERROR.out(message);
+    }
+
+    static void stop(String message) {
+        error(message);
+        System.exit(1);
+    }
+}
+
+enum Arg {
+    HELP("-help", "Show this help"),
+    VERBOSE("-verbose", "Enable verbose output"),
+    OUTPUT("-output", "Specify output file");
+
+    final String option;
+    final String description;
+
+    Arg(String option, String description) {
+        this.option = option;
+        this.description = description;
+    }
+
+    boolean matches(String value) {
+        return this.option.equals(value)
+            || value.startsWith(this.option + ":");
+    }
+
+    static Arg from(String value) {
+        return Stream.of(values())
+            .filter(a -> a.matches(value))
+            .findFirst()
+            .orElse(null);
+    }
+
+    static String usage() {
+        return Stream.of(values())
+            .map(a -> "  %-12s %s".formatted(a.option, a.description))
+            .collect(Collectors.joining("\n"));
+    }
+}
+
+record Args(boolean verbose, String output, List<String> files) {}
+
+void main(String... args) {
+    Log.info("zargs v0.0.1");
+    if (args.length == 0) {
+        printUsage();
+    }
+    var parsed = parseArgs(args);
+    Log.user("verbose: " + parsed.verbose());
+    Log.user("output:  " + parsed.output());
+    Log.user("files:   " + parsed.files());
+}
+
+Args parseArgs(String[] args) {
+    var verbose = false;
+    String output = null;
+    var files = new ArrayList<String>();
+
+    for (int i = 0; i < args.length; i++) {
+        var arg = args[i];
+        switch (Arg.from(arg)) {
+            case HELP -> printUsage();
+            case VERBOSE -> verbose = true;
+            case OUTPUT -> output = extractValue(arg, args, i++);
+            case null when arg.startsWith("-") -> Log.stop("Unknown option: " + arg);
+            case null -> files.add(arg);
+        }
+    }
+    return new Args(verbose, output, List.copyOf(files));
+}
+
+String extractValue(String arg, String[] args, int index) {
+    if (arg.contains(":")) {
+        return arg.substring(arg.indexOf(":") + 1);
+    }
+    if (index + 1 >= args.length) {
+        Log.stop("Missing value for " + arg);
+    }
+    return args[index + 1];
+}
+
+void printUsage() {
+    Log.user("""
+        Usage: zargs [options] <files...>
+
+        Options:
+        %s
+        """.formatted(Arg.usage()));
+    System.exit(0);
+}
