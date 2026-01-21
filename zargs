@@ -119,8 +119,10 @@ Args parseArgs(String[] args) {
             case HELP -> printUsage();
             case VERBOSE -> verbose = true;
             case OUTPUT -> output = extractValue(arg, args, i++);
-            case null when arg.startsWith("-") -> Log.stop("Unknown option: " + arg);
-            case null -> files.add(arg);
+            case null -> {
+                if (arg.startsWith("-")) Log.stop("Unknown option: " + arg);
+                files.add(arg);
+            }
         }
     }
     return new Args(verbose, output, List.copyOf(files));
