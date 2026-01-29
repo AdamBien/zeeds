@@ -77,7 +77,8 @@ enum Log {
 
 void main(String... args) {
     if (args.length == 0) {
-        Log.user("Usage: zcbs <filename>");
+        Log.info("Usage: zcbs <filename>");
+        return;
     }
 
     var filename = args[0];
