@@ -44,11 +44,11 @@ enum Key {
 }
 
 record MenuResult(MenuItem selected, boolean cancelled) {
-    static MenuResult cancelled() {
+    static MenuResult ofCancelled() {
         return new MenuResult(null, true);
     }
 
-    static MenuResult selected(MenuItem item) {
+    static MenuResult ofSelected(MenuItem item) {
         return new MenuResult(item, false);
     }
 }
@@ -110,11 +110,11 @@ MenuResult showMenu(String title, MenuItem[] items) throws Exception {
                 case DOWN -> selectedIndex = (selectedIndex + 1) % items.length;
                 case ENTER -> {
                     clearMenu(items.length);
-                    return MenuResult.selected(items[selectedIndex]);
+                    return MenuResult.ofSelected(items[selectedIndex]);
                 }
                 case ESCAPE -> {
                     clearMenu(items.length);
-                    return MenuResult.cancelled();
+                    return MenuResult.ofCancelled();
                 }
                 case OTHER -> {}
             }
