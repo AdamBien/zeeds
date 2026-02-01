@@ -1,0 +1,165 @@
+#!/usr/bin/env -S java --source 25
+
+/**
+ * zmenu - Interactive terminal menu with arrow key navigation
+ *
+ * Configure menu items via the MenuItem enum. Navigate with arrow keys,
+ * confirm with Enter, cancel with Escape.
+ */
+
+enum MenuItem {
+    COMPILE("Compile project"),
+    TEST("Run tests"),
+    PACKAGE("Package application"),
+    DEPLOY("Deploy to server"),
+    CLEAN("Clean build artifacts");
+
+    final String label;
+
+    MenuItem(String label) {
+        this.label = label;
+    }
+}
+
+enum Key {
+    UP, DOWN, ENTER, ESCAPE, OTHER;
+
+    static Key read(int[] bytes, int length) {
+        if (length == 1) {
+            return switch (bytes[0]) {
+                case 10, 13 -> ENTER;
+                case 27 -> ESCAPE;
+                default -> OTHER;
+            };
+        }
+        if (length == 3 && bytes[0] == 27 && bytes[1] == 91) {
+            return switch (bytes[2]) {
+                case 65 -> UP;
+                case 66 -> DOWN;
+                default -> OTHER;
+            };
+        }
+        return OTHER;
+    }
+}
+
+record MenuResult(MenuItem selected, boolean cancelled) {
+    static MenuResult cancelled() {
+        return new MenuResult(null, true);
+    }
+
+    static MenuResult selected(MenuItem item) {
+        return new MenuResult(item, false);
+    }
+}
+
+class Terminal {
+    static final String CLEAR_LINE = "\033[2K";
+    static final String HIDE_CURSOR = "\033[?25l";
+    static final String SHOW_CURSOR = "\033[?25h";
+    static final String RESET = "\033[0m";
+    static final String BOLD = "\033[1m";
+    static final String DIM = "\033[2m";
+    static final String CYAN = "\033[36m";
+    static final String WHITE = "\033[97m";
+
+    static void enableRawMode() throws Exception {
+        new ProcessBuilder("sh", "-c", "stty -icanon -echo < /dev/tty")
+            .inheritIO().start().waitFor();
+    }
+
+    static void disableRawMode() throws Exception {
+        new ProcessBuilder("sh", "-c", "stty sane < /dev/tty")
+            .inheritIO().start().waitFor();
+    }
+
+    static void moveCursorUp(int lines) {
+        if (lines > 0) System.out.printf("\033[%dA", lines);
+    }
+
+    static void print(String text) {
+        System.out.print(text);
+        System.out.flush();
+    }
+}
+
+void main(String... args) throws Exception {
+    var result = showMenu("Select an action:", MenuItem.values());
+
+    if (result.cancelled()) {
+        System.out.println("Cancelled");
+    } else {
+        System.out.println("Selected: " + result.selected().label);
+    }
+}
+
+MenuResult showMenu(String title, MenuItem[] items) throws Exception {
+    var selectedIndex = 0;
+
+    Terminal.print(Terminal.HIDE_CURSOR);
+    Terminal.enableRawMode();
+
+    try {
+        System.out.println(Terminal.BOLD + title + Terminal.RESET);
+        renderMenu(items, selectedIndex);
+
+        while (true) {
+            var key = readKey();
+            switch (key) {
+                case UP -> selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+                case DOWN -> selectedIndex = (selectedIndex + 1) % items.length;
+                case ENTER -> {
+                    clearMenu(items.length);
+                    return MenuResult.selected(items[selectedIndex]);
+                }
+                case ESCAPE -> {
+                    clearMenu(items.length);
+                    return MenuResult.cancelled();
+                }
+                case OTHER -> {}
+            }
+            Terminal.moveCursorUp(items.length);
+            renderMenu(items, selectedIndex);
+        }
+    } finally {
+        Terminal.disableRawMode();
+        Terminal.print(Terminal.SHOW_CURSOR);
+    }
+}
+
+void renderMenu(MenuItem[] items, int selectedIndex) {
+    for (int i = 0; i < items.length; i++) {
+        var prefix = (i == selectedIndex) ? " ▸ " : "   ";
+        var style = (i == selectedIndex)
+            ? Terminal.CYAN + Terminal.BOLD
+            : Terminal.DIM;
+        System.out.println(Terminal.CLEAR_LINE + style + prefix + items[i].label + Terminal.RESET);
+    }
+}
+
+void clearMenu(int lines) {
+    Terminal.moveCursorUp(lines);
+    for (int i = 0; i < lines; i++) {
+        System.out.println(Terminal.CLEAR_LINE);
+    }
+    Terminal.moveCursorUp(lines);
+}
+
+Key readKey() throws Exception {
+    var bytes = new int[3];
+    var length = 0;
+
+    bytes[0] = System.in.read();
+    length = 1;
+
+    if (bytes[0] == 27 && System.in.available() > 0) {
+        bytes[1] = System.in.read();
+        length = 2;
+        if (System.in.available() > 0) {
+            bytes[2] = System.in.read();
+            length = 3;
+        }
+    }
+
+    return Key.read(bytes, length);
+}
