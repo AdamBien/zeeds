@@ -1,3 +1,5 @@
+<img src="logo.png" alt="zeeds logo" width="200">
+
 # zeeds (**Z**ero d**E**pendency s**EEDS**)
 
 *Too small for their own repository. Too useful to not exist.*
