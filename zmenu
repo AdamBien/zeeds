@@ -9,17 +9,35 @@
 
 import module java.base;
 
+static void compile(){
+    IO.println("compile action");
+}
+
+static void test(){
+    IO.println("test action");
+}
+
+static void build(){
+    IO.println("build action");
+}
+
+static void noop(){
+    IO.println("not implemented");
+}
+
 enum MenuItem {
-    COMPILE("Compile project"),
-    TEST("Run tests"),
-    PACKAGE("Package application"),
-    DEPLOY("Deploy to server"),
-    CLEAN("Clean build artifacts");
+    COMPILE("Compile project", () -> compile()),
+    TEST("Run tests", () -> test()),
+    BUILD("Package application", () -> build()),
+    DEPLOY("Deploy to server",() -> noop()),
+    CLEAN("Clean build artifacts",() -> noop());
 
     final String label;
+    final Runnable action;
 
-    MenuItem(String label) {
+    MenuItem(String label,Runnable action) {
         this.label = label;
+        this.action = action;
     }
 }
 
@@ -56,7 +74,7 @@ final String CYAN = "\033[36m";
 void main(String... args) throws Exception {
     var result = showMenu("Select an action:", MenuItem.values());
     result.ifPresentOrElse(
-        item -> IO.println("Selected: " + item.label),
+        item -> item.action.run(),
         () -> IO.println("Cancelled")
     );
 }
