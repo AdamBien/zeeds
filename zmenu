@@ -3,7 +3,7 @@
 /**
  * zmenu - Interactive terminal menu with arrow key navigation
  *
- * Configure menu items via the MenuItem enum. Navigate with arrow keys,
+ * Configure menu items via the ITEMS list. Navigate with arrow keys,
  * confirm with Enter, cancel with Escape.
  */
 
@@ -25,21 +25,15 @@ static void noop(){
     IO.println("not implemented");
 }
 
-enum MenuItem {
-    COMPILE("Compile project", () -> compile()),
-    TEST("Run tests", () -> test()),
-    BUILD("Package application", () -> build()),
-    DEPLOY("Deploy to server",() -> noop()),
-    CLEAN("Clean build artifacts",() -> noop());
+record MenuItem(String label, Runnable action) {}
 
-    final String label;
-    final Runnable action;
-
-    MenuItem(String label,Runnable action) {
-        this.label = label;
-        this.action = action;
-    }
-}
+final List<MenuItem> ITEMS = List.of(
+    new MenuItem("Compile project", () -> compile()),
+    new MenuItem("Run tests", () -> test()),
+    new MenuItem("Package application", () -> build()),
+    new MenuItem("Deploy to server", () -> noop()),
+    new MenuItem("Clean build artifacts", () -> noop())
+);
 
 enum Key {
     UP, DOWN, ENTER, ESCAPE, OTHER;
@@ -72,14 +66,14 @@ final String DIM = "\033[2m";
 final String CYAN = "\033[36m";
 
 void main(String... args) throws Exception {
-    var result = showMenu("Select an action:", MenuItem.values());
+    var result = showMenu("Select an action:", ITEMS);
     result.ifPresentOrElse(
-        item -> item.action.run(),
+        item -> item.action().run(),
         () -> IO.println("Cancelled")
     );
 }
 
-Optional<MenuItem> showMenu(String title, MenuItem[] items) throws Exception {
+Optional<MenuItem> showMenu(String title, List<MenuItem> items) throws Exception {
     var selectedIndex = 0;
     IO.print(HIDE_CURSOR);
     enableRawMode();
@@ -89,19 +83,19 @@ Optional<MenuItem> showMenu(String title, MenuItem[] items) throws Exception {
         while (true) {
             var key = readKey();
             switch (key) {
-                case UP -> selectedIndex = (selectedIndex - 1 + items.length) % items.length;
-                case DOWN -> selectedIndex = (selectedIndex + 1) % items.length;
+                case UP -> selectedIndex = (selectedIndex - 1 + items.size()) % items.size();
+                case DOWN -> selectedIndex = (selectedIndex + 1) % items.size();
                 case ENTER -> {
-                    clearMenu(items.length);
-                    return Optional.of(items[selectedIndex]);
+                    clearMenu(items.size());
+                    return Optional.of(items.get(selectedIndex));
                 }
                 case ESCAPE -> {
-                    clearMenu(items.length);
+                    clearMenu(items.size());
                     return Optional.empty();
                 }
                 case OTHER -> {}
             }
-            IO.print("\033[%dA".formatted(items.length));
+            IO.print("\033[%dA".formatted(items.size()));
             renderMenu(items, selectedIndex);
         }
     } finally {
@@ -110,11 +104,11 @@ Optional<MenuItem> showMenu(String title, MenuItem[] items) throws Exception {
     }
 }
 
-void renderMenu(MenuItem[] items, int selectedIndex) {
-    for (int i = 0; i < items.length; i++) {
+void renderMenu(List<MenuItem> items, int selectedIndex) {
+    for (int i = 0; i < items.size(); i++) {
         var prefix = (i == selectedIndex) ? " ▸ " : "   ";
         var style = (i == selectedIndex) ? CYAN + BOLD : DIM;
-        IO.println(CLEAR_LINE + style + prefix + items[i].label + RESET);
+        IO.println(CLEAR_LINE + style + prefix + items.get(i).label() + RESET);
     }
 }
 
