@@ -78,6 +78,7 @@ void main(String... args) throws Exception {
 
 Optional<MenuItem> showMenu(String title, List<MenuItem> items) throws Exception {
     selectedIndex = 0;
+    var itemsSize = items.size();
     IO.print(HIDE_CURSOR);
     enableRawMode();
     try {
@@ -85,19 +86,19 @@ Optional<MenuItem> showMenu(String title, List<MenuItem> items) throws Exception
         renderMenu(items, selectedIndex);
         while (true) {
             switch (readKey()) {
-                case UP -> previousIndex(items.size());
-                case DOWN -> nextIndex(items.size());
+                case UP -> previousIndex(itemsSize);
+                case DOWN -> nextIndex(itemsSize);
                 case ENTER -> {
-                    clearMenu(items.size());
+                    clearMenu(itemsSize);
                     return Optional.of(items.get(selectedIndex));
                 }
                 case ESCAPE -> {
-                    clearMenu(items.size());
+                    clearMenu(itemsSize);
                     return Optional.empty();
                 }
                 case OTHER -> {}
             }
-            IO.print(CURSOR_UP.formatted(items.size()));
+            IO.print(CURSOR_UP.formatted(itemsSize));
             renderMenu(items, selectedIndex);
         }
     } finally {
