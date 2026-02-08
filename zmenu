@@ -64,6 +64,7 @@ final String RESET = "\033[0m";
 final String BOLD = "\033[1m";
 final String DIM = "\033[2m";
 final String CYAN = "\033[36m";
+final String CURSOR_UP = "\033[%dA";
 
 void main(String... args) throws Exception {
     var result = showMenu("Select an action:", ITEMS);
@@ -94,7 +95,7 @@ Optional<MenuItem> showMenu(String title, List<MenuItem> items) throws Exception
                 }
                 case OTHER -> {}
             }
-            IO.print("\033[%dA".formatted(items.size()));
+            IO.print(CURSOR_UP.formatted(items.size()));
             renderMenu(items, selectedIndex);
         }
     } finally {
@@ -112,9 +113,9 @@ void renderMenu(List<MenuItem> items, int selectedIndex) {
 }
 
 void clearMenu(int lines) {
-    IO.print("\033[%dA".formatted(lines));
+    IO.print(CURSOR_UP.formatted(lines));
     IO.print((CLEAR_LINE + "\n").repeat(lines));
-    IO.print("\033[%dA".formatted(lines));
+    IO.print(CURSOR_UP.formatted(lines));
 }
 
 void enableRawMode() throws Exception {
