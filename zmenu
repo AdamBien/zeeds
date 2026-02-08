@@ -83,8 +83,8 @@ Optional<MenuItem> showMenu(String title, List<MenuItem> items) throws Exception
         renderMenu(items, selectedIndex);
         while (true) {
             switch (readKey()) {
-                case UP -> selectedIndex = (selectedIndex - 1 + items.size()) % items.size();
-                case DOWN -> selectedIndex = (selectedIndex + 1) % items.size();
+                case UP -> selectedIndex = previousIndex(selectedIndex, items.size());
+                case DOWN -> selectedIndex = nextIndex(selectedIndex, items.size());
                 case ENTER -> {
                     clearMenu(items.size());
                     return Optional.of(items.get(selectedIndex));
@@ -102,6 +102,14 @@ Optional<MenuItem> showMenu(String title, List<MenuItem> items) throws Exception
         disableRawMode();
         IO.print(SHOW_CURSOR);
     }
+}
+
+int previousIndex(int current, int size) {
+    return (current - 1 + size) % size;
+}
+
+int nextIndex(int current, int size) {
+    return (current + 1) % size;
 }
 
 void renderMenu(List<MenuItem> items, int selectedIndex) {
