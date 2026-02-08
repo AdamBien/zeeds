@@ -66,6 +66,8 @@ final String DIM = "\033[2m";
 final String CYAN = "\033[36m";
 final String CURSOR_UP = "\033[%dA";
 
+int selectedIndex = 0;
+
 void main(String... args) throws Exception {
     var result = showMenu("Select an action:", ITEMS);
     result.ifPresentOrElse(
@@ -75,7 +77,7 @@ void main(String... args) throws Exception {
 }
 
 Optional<MenuItem> showMenu(String title, List<MenuItem> items) throws Exception {
-    var selectedIndex = 0;
+    selectedIndex = 0;
     IO.print(HIDE_CURSOR);
     enableRawMode();
     try {
@@ -83,8 +85,8 @@ Optional<MenuItem> showMenu(String title, List<MenuItem> items) throws Exception
         renderMenu(items, selectedIndex);
         while (true) {
             switch (readKey()) {
-                case UP -> selectedIndex = previousIndex(selectedIndex, items.size());
-                case DOWN -> selectedIndex = nextIndex(selectedIndex, items.size());
+                case UP -> previousIndex(items.size());
+                case DOWN -> nextIndex(items.size());
                 case ENTER -> {
                     clearMenu(items.size());
                     return Optional.of(items.get(selectedIndex));
@@ -104,12 +106,12 @@ Optional<MenuItem> showMenu(String title, List<MenuItem> items) throws Exception
     }
 }
 
-int previousIndex(int current, int size) {
-    return (current - 1 + size) % size;
+void previousIndex(int size) {
+    selectedIndex = (selectedIndex - 1 + size) % size;
 }
 
-int nextIndex(int current, int size) {
-    return (current + 1) % size;
+void nextIndex(int size) {
+    selectedIndex = (selectedIndex + 1) % size;
 }
 
 void renderMenu(List<MenuItem> items, int selectedIndex) {
