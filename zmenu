@@ -81,8 +81,7 @@ Optional<MenuItem> showMenu(String title, List<MenuItem> items) throws Exception
         IO.println(BOLD + title + RESET);
         renderMenu(items, selectedIndex);
         while (true) {
-            var key = readKey();
-            switch (key) {
+            switch (readKey()) {
                 case UP -> selectedIndex = (selectedIndex - 1 + items.size()) % items.size();
                 case DOWN -> selectedIndex = (selectedIndex + 1) % items.size();
                 case ENTER -> {
