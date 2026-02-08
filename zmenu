@@ -68,13 +68,7 @@ final String CURSOR_UP = "\033[%dA";
 
 int selectedIndex = 0;
 
-void main(String... args) throws Exception {
-    var result = showMenu("Select an action:", ITEMS);
-    result.ifPresentOrElse(
-        item -> item.action().run(),
-        () -> IO.println("Cancelled")
-    );
-}
+
 
 Optional<MenuItem> showMenu(String title, List<MenuItem> items) throws Exception {
     selectedIndex = 0;
@@ -152,4 +146,12 @@ Key readKey() throws Exception {
         }
     }
     return Key.read(bytes, length);
+}
+
+void main() throws Exception {
+    var result = showMenu("Select an action:", ITEMS);
+    result.ifPresentOrElse(
+        item -> item.action().run(),
+        () -> IO.println("Cancelled")
+    );
 }
