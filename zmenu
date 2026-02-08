@@ -38,15 +38,17 @@ final List<MenuItem> ITEMS = List.of(
 enum Key {
     UP, DOWN, ENTER, ESCAPE, OTHER;
 
+    static final int ESC = '\033';
+
     static Key read(int[] bytes, int length) {
         if (length == 1) {
             return switch (bytes[0]) {
                 case '\n', '\r' -> ENTER;
-                case '\033' -> ESCAPE;
+                case ESC -> ESCAPE;
                 default -> OTHER;
             };
         }
-        if (length == 3 && bytes[0] == '\033' && bytes[1] == '[') {
+        if (length == 3 && bytes[0] == ESC && bytes[1] == '[') {
             return switch (bytes[2]) {
                 case 'A' -> UP;
                 case 'B' -> DOWN;
@@ -137,7 +139,7 @@ Key readKey() throws Exception {
     var bytes = new int[3];
     bytes[0] = System.in.read();
     var length = 1;
-    if (bytes[0] == 27 && System.in.available() > 0) {
+    if (bytes[0] == Key.ESC && System.in.available() > 0) {
         bytes[1] = System.in.read();
         length = 2;
         if (System.in.available() > 0) {
