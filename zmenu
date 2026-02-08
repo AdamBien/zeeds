@@ -41,15 +41,15 @@ enum Key {
     static Key read(int[] bytes, int length) {
         if (length == 1) {
             return switch (bytes[0]) {
-                case 10, 13 -> ENTER;
-                case 27 -> ESCAPE;
+                case '\n', '\r' -> ENTER;
+                case '\033' -> ESCAPE;
                 default -> OTHER;
             };
         }
-        if (length == 3 && bytes[0] == 27 && bytes[1] == 91) {
+        if (length == 3 && bytes[0] == '\033' && bytes[1] == '[') {
             return switch (bytes[2]) {
-                case 65 -> UP;
-                case 66 -> DOWN;
+                case 'A' -> UP;
+                case 'B' -> DOWN;
                 default -> OTHER;
             };
         }
