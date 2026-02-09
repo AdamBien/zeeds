@@ -27,13 +27,15 @@ static void noop(){
 
 record MenuItem(String label, Runnable action) {}
 
-final List<MenuItem> ITEMS = List.of(
+List<MenuItem> menuItems = List.of(
     new MenuItem("Compile project", () -> compile()),
     new MenuItem("Run tests", () -> test()),
     new MenuItem("Package application", () -> build()),
     new MenuItem("Deploy to server", () -> noop()),
     new MenuItem("Clean build artifacts", () -> noop())
 );
+
+Runnable cancellationAction = () -> IO.println("Cancelled");
 
 enum Key {
     UP, DOWN, ENTER, ESCAPE, OTHER;
@@ -151,9 +153,8 @@ Key readKey() throws Exception {
 }
 
 void main() throws Exception {
-    showMenu("Select an action:", ITEMS)
+    showMenu("Select an action:", menuItems)
     .ifPresentOrElse(
         item -> item.action().run(),
-        () -> IO.println("Cancelled")
-    );
+        cancellationAction);
 }
