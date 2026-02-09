@@ -25,7 +25,11 @@ static void noop(){
     IO.println("not implemented");
 }
 
-record MenuItem(String label, Runnable action) {}
+record MenuItem(String label, Runnable action) {
+    void performAction() {
+        action.run();
+    }
+}
 
 List<MenuItem> menuItems = List.of(
     new MenuItem("Compile project", () -> compile()),
@@ -155,6 +159,6 @@ Key readKey() throws Exception {
 void main() throws Exception {
     showMenu("Select an action:", menuItems)
     .ifPresentOrElse(
-        item -> item.action().run(),
+        MenuItem::performAction,
         cancellationAction);
 }
