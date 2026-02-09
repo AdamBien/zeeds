@@ -151,8 +151,8 @@ Key readKey() throws Exception {
 }
 
 void main() throws Exception {
-    var result = showMenu("Select an action:", ITEMS);
-    result.ifPresentOrElse(
+    showMenu("Select an action:", ITEMS)
+    .ifPresentOrElse(
         item -> item.action().run(),
         () -> IO.println("Cancelled")
     );
