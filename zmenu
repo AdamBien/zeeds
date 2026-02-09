@@ -46,15 +46,7 @@ enum Key {
 
     static final int ESC = '\033';
 
-    static Key read(int[] bytes, int length) {
-        return switch (length) {
-            case 1 -> fromByte(bytes[0]);
-            case 3 -> fromEscapeSequence(bytes[2]);
-            default -> OTHER;
-        };
-    }
-
-    static Key fromByte(int b) {
+static Key fromByte(int b) {
         return switch (b) {
             case '\n', '\r' -> ENTER;
             case ESC -> ESCAPE;
@@ -152,18 +144,12 @@ boolean isEscapeSequence(int firstByte) throws Exception {
 }
 
 Key readKey() throws Exception {
-    var bytes = new int[3];
-    bytes[0] = System.in.read();
-    var length = 1;
-    if (isEscapeSequence(bytes[0])) {
-        bytes[1] = System.in.read();
-        length = 2;
-        if (System.in.available() > 0) {
-            bytes[2] = System.in.read();
-            length = 3;
-        }
+    var firstByte = System.in.read();
+    if (isEscapeSequence(firstByte)) {
+        System.in.read(); // skip '['
+        return Key.fromEscapeSequence(System.in.read());
     }
-    return Key.read(bytes, length);
+    return Key.fromByte(firstByte);
 }
 
 void main() throws Exception {
