@@ -54,7 +54,7 @@ enum Key {
                 default -> OTHER;
             };
         }
-        if (length == 3 && bytes[0] == ESC && bytes[1] == '[') {
+        if (length == 3) {
             return switch (bytes[2]) {
                 case 'A' -> UP;
                 case 'B' -> DOWN;
