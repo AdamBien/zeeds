@@ -47,21 +47,27 @@ enum Key {
     static final int ESC = '\033';
 
     static Key read(int[] bytes, int length) {
-        if (length == 1) {
-            return switch (bytes[0]) {
-                case '\n', '\r' -> ENTER;
-                case ESC -> ESCAPE;
-                default -> OTHER;
-            };
-        }
-        if (length == 3) {
-            return switch (bytes[2]) {
-                case 'A' -> UP;
-                case 'B' -> DOWN;
-                default -> OTHER;
-            };
-        }
-        return OTHER;
+        return switch (length) {
+            case 1 -> fromByte(bytes[0]);
+            case 3 -> fromEscapeSequence(bytes[2]);
+            default -> OTHER;
+        };
+    }
+
+    static Key fromByte(int b) {
+        return switch (b) {
+            case '\n', '\r' -> ENTER;
+            case ESC -> ESCAPE;
+            default -> OTHER;
+        };
+    }
+
+    static Key fromEscapeSequence(int code) {
+        return switch (code) {
+            case 'A' -> UP;
+            case 'B' -> DOWN;
+            default -> OTHER;
+        };
     }
 }
 
