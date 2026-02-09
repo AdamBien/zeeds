@@ -141,11 +141,15 @@ void disableRawMode() throws Exception {
         .inheritIO().start().waitFor();
 }
 
+boolean isEscapeSequence(int firstByte) throws Exception {
+    return firstByte == Key.ESC && System.in.available() > 0;
+}
+
 Key readKey() throws Exception {
     var bytes = new int[3];
     bytes[0] = System.in.read();
     var length = 1;
-    if (bytes[0] == Key.ESC && System.in.available() > 0) {
+    if (isEscapeSequence(bytes[0])) {
         bytes[1] = System.in.read();
         length = 2;
         if (System.in.available() > 0) {
