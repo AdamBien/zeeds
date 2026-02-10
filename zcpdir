@@ -1,0 +1,44 @@
+#!/usr/bin/env -S java --source 25
+
+/**
+ * zcpdir - Copy a directory recursively
+ *
+ * Usage: ./zcpdir <source-directory> [target-directory]
+ */
+
+import module java.base;
+
+Path source;
+Path target;
+
+void main(String... args) throws Exception {
+    if (args.length < 1) {
+        IO.println("Usage: zcpdir <source-directory> [target-directory]");
+        System.exit(1);
+    }
+    source = Path.of(args[0]);
+    if (!Files.isDirectory(source)) {
+        IO.println("Not a directory: " + source);
+        System.exit(1);
+    }
+    target = targetDir(args);
+    Files.walk(source).toList().forEach(this::copyEntry);
+    IO.println("Copied " + source + " to " + target);
+}
+
+Path targetDir(String... args) {
+    return args.length > 1 ? Path.of(args[1]) : Path.of("").toAbsolutePath();
+}
+
+void copyEntry(Path path) {
+    try {
+        var destination = target.resolve(source.relativize(path));
+        if (Files.isDirectory(path)) {
+            Files.createDirectories(destination);
+        } else {
+            Files.copy(path, destination, StandardCopyOption.REPLACE_EXISTING);
+        }
+    } catch (IOException e) {
+        throw new UncheckedIOException(e);
+    }
+}
