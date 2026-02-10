@@ -1,0 +1,95 @@
+#!/usr/bin/env -S java --source 25
+
+/**
+ * zwrap - Wraps another Java 25 script with additional parameters
+ *
+ * Demonstrates using ProcessBuilder with inheritIO to delegate
+ * to another script while prepending extra arguments.
+ *
+ * Example: zwrap zecho "hello world"
+ * Calls:   zecho "hello world"
+ */
+
+
+void main(String... args) {
+    Log.info("zwrap v0.0.1");
+    if (args.length == 0) {
+        Log.stop("Usage: zwrap <script> [args...]");
+    }
+
+    var script = args[0];
+    var extraArgs = List.of("--verbose", "--color");
+    var command = new ArrayList<>(List.of(script));
+    command.addAll(extraArgs);
+    command.addAll(List.of(args).subList(1, args.length));
+
+    Log.user("wrapping: " + script);
+    Log.user("command:  " + String.join(" ", command));
+
+    try {
+        var exitCode = new ProcessBuilder(command)
+                .inheritIO()
+                .start()
+                .waitFor();
+        System.exit(exitCode);
+    } catch (Exception e) {
+        Log.stop("Failed to run " + script + ": " + e.getMessage());
+    }
+}
+
+enum Log {
+
+    ERROR(Color.BRIGHT_RED, System.err),
+    USER(Color.BRIGHT_WHITE, System.out),
+    INFO(Color.BRIGHT_GREEN, System.out),
+    SYSTEM(Color.SKY_BLUE, System.out),
+    WARNING(Color.WARM_YELLOW, System.out),
+    DEBUG(Color.SOFT_PURPLE, System.out);
+
+    PrintStream out;
+
+    enum Color {
+        WARM_YELLOW("\033[38;5;220m"),
+        BRIGHT_WHITE("\033[38;5;255m"),
+        BRIGHT_RED("\033[38;5;196m"),
+        BRIGHT_GREEN("\033[38;5;46m"),
+        SKY_BLUE("\033[38;5;39m"),
+        SOFT_PURPLE("\033[38;5;129m");
+
+        String code;
+
+        Color(String code) {
+            this.code = code;
+        }
+    }
+
+    String value;
+    static final String RESET = "\u001B[0m";
+
+    Log(Color color, PrintStream out) {
+        this.value = color.code + "%s" + RESET;
+        this.out = out;
+    }
+
+    void out(String message) {
+        this.out.println(this.value.formatted(message));
+    }
+
+    static void info(String message) {
+        INFO.out(message);
+    }
+
+    static void user(String message) {
+        USER.out(message);
+    }
+
+    static void error(String message) {
+        ERROR.out(message);
+    }
+
+    static void stop(String message) {
+        error(message);
+        System.exit(1);
+    }
+}
+
