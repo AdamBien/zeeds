@@ -8,4 +8,5 @@ Zero-dependency Java 25+ source files designed as starting points for your proje
 
 ## Zeeds
 
-- **zcpdir** — Copy a directory recursively. Usage: `./zcpdir <source-directory> [target-directory]`
+- [**zcpdir**](zcpdir) — Copy a directory recursively. Usage: `./zcpdir <source-directory> [target-directory]`
+- [**zcbs**](zcbs) — Save clipboard content to a file. Usage: `./zcbs <filename>`
