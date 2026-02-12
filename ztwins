@@ -1,0 +1,39 @@
+#!/usr/bin/env -S java --source 25
+
+/**
+ * ztwins - Find files with identical content
+ *
+ * Usage: ./ztwins <file> <directory>
+ */
+
+void main(String... args) throws Exception {
+    if (args.length < 2) {
+        IO.println("Usage: ztwins <file> <directory>");
+        System.exit(1);
+    }
+    var file = Path.of(args[0]);
+    var directory = Path.of(args[1]);
+    if (!Files.isRegularFile(file)) {
+        IO.println("Not a file: " + file);
+        System.exit(1);
+    }
+    if (!Files.isDirectory(directory)) {
+        IO.println("Not a directory: " + directory);
+        System.exit(1);
+    }
+    var reference = Files.readAllBytes(file);
+    try (var entries = Files.walk(directory)) {
+        entries.filter(Files::isRegularFile)
+               .filter(candidate -> matches(reference, candidate))
+               .forEach(match -> IO.println(match.toString()));
+    }
+}
+
+boolean matches(byte[] reference, Path candidate) {
+    try {
+        var candidateContent = Files.readAllBytes(candidate);
+        return Arrays.equals(reference, candidateContent);
+    } catch (IOException e) {
+        return false;
+    }
+}
