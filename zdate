@@ -1,0 +1,70 @@
+#!/usr/bin/env -S java --source 25
+
+/**
+ * zdate - prints and copies the current date (dd.MM.yyyy) to the system clipboard
+ */
+
+import module java.desktop;
+
+String version = "2026-02-14.1";
+
+enum Log {
+
+    ERROR(Color.BRIGHT_RED, System.err),
+    INFO(Color.BRIGHT_GREEN, System.out),
+    SYSTEM(Color.SKY_BLUE, System.out);
+
+    PrintStream out;
+
+    enum Color {
+        BRIGHT_RED("\033[38;5;196m"),
+        BRIGHT_GREEN("\033[38;5;46m"),
+        SKY_BLUE("\033[38;5;39m");
+
+        String code;
+
+        Color(String code) {
+            this.code = code;
+        }
+    }
+
+    private final String value;
+    private final static String RESET = "\u001B[0m";
+
+    private Log(Color color, PrintStream out) {
+        this.value = (color.code + "%s" + RESET);
+        this.out = out;
+    }
+
+    public void out(String message) {
+        this.out.println(this.value.formatted(message));
+    }
+
+    public static void error(String message) {
+        Log.ERROR.out(message);
+    }
+
+    public static void info(String message) {
+        Log.INFO.out(message);
+    }
+
+    public static void stop(String message) {
+        error(message);
+        System.exit(1);
+    }
+}
+
+void main() {
+    var date = LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+    copyToClipboard(date);
+    Log.info("zdate v" + version + " - " + date + " (copied to clipboard)");
+}
+
+void copyToClipboard(String text) {
+    try {
+        var clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        clipboard.setContents(new StringSelection(text), null);
+    } catch (Exception e) {
+        Log.stop("Failed to copy to clipboard: " + e.getMessage());
+    }
+}
