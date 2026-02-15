@@ -1,7 +1,8 @@
 #!/usr/bin/env -S java --source 25
 
 /**
- * zdate - prints and copies the current date (dd.MM.yyyy) to the system clipboard
+ * zdate - prints and copies the current date to the system clipboard
+ *         default: dd.MM.yyyy, -y: yyyy.MM.dd
  */
 
 import module java.desktop;
@@ -54,8 +55,9 @@ enum Log {
     }
 }
 
-void main() {
-    var date = LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+void main(String[] args) {
+    var pattern = args.length > 0 && "-y".equals(args[0]) ? "yyyy.MM.dd" : "dd.MM.yyyy";
+    var date = LocalDate.now().format(DateTimeFormatter.ofPattern(pattern));
     copyToClipboard(date);
     Log.info("zdate v" + version + " - " + date + " (copied to clipboard)");
 }
