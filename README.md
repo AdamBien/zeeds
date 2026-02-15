@@ -16,3 +16,4 @@ Zero-dependency Java 25+ source files designed as starting points for your proje
 - [**zmenu**](zmenu) — Interactive terminal menu with arrow key navigation. Configure menu items, navigate with arrows, confirm with Enter, cancel with Escape.
 - [**zargs**](zargs) — Idiomatic argument parsing with enum-based options. Usage: `./zargs [options] <files...>`
 - [**ztwins**](ztwins) — Find files with identical content. Usage: `./ztwins <file> <directory>`
+- [**zdate**](zdate) — Print and copy today's date (dd.MM.yyyy) to the clipboard. Usage: `./zdate`
