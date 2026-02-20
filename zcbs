@@ -13,14 +13,16 @@ enum Log {
 
     ERROR(Color.RED, System.err),
     INFO(Color.GREEN, System.out),
-    SUCCESS(Color.MAGENTA, System.out);
+    SUCCESS(Color.MAGENTA, System.out),
+    DIMMED(Color.DIM, System.out);
 
     PrintStream out;
 
     enum Color {
         RED("\033[38;2;220;50;47m"),          // Solarized Red #dc322f
         MAGENTA("\033[38;2;211;54;130m"),     // Solarized Magenta #d33682
-        GREEN("\033[38;2;133;153;0m");        // Solarized Green #859900
+        GREEN("\033[38;2;133;153;0m"),        // Solarized Green #859900
+        DIM("\033[2m");                        // Dimmed text
 
         String code;
 
@@ -54,13 +56,20 @@ enum Log {
         Log.SUCCESS.out(message);
     }
 
+    public static void dimmed(String message){
+        Log.DIMMED.out(message);
+    }
+
     public static void stop(String message){
         error(message);
         System.exit(0);
     }
 }
 
+String version = "2026-02-20.1";
+
 void main(String... args) {
+    Log.info("zcbs %s%n".formatted(version));
     if (args.length == 0) {
         Log.info("Usage: zcbs <filename>");
         return;
@@ -72,9 +81,7 @@ void main(String... args) {
 
     try {
         Files.writeString(path, content);
-        Log.info("---");
-        Log.info(content);
-        Log.info("---");
+        Log.dimmed(content);
         Log.success("Clipboard saved to: " + path.toAbsolutePath());
     } catch (Exception e) {
         Log.stop("Failed to write file: " + e.getMessage());
