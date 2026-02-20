@@ -87,6 +87,8 @@ void main(String... args) {
 
     try {
         Files.writeString(path, content);
+        Log.info("---\n");
+        Log.info(content);
         Log.info("Clipboard saved to: " + path.toAbsolutePath());
     } catch (Exception e) {
         Log.stop("Failed to write file: " + e.getMessage());
