@@ -11,27 +11,16 @@ import java.nio.file.Path;
 
 enum Log {
 
-    ERROR(Color.BRIGHT_RED, System.err),
-    USER(Color.BRIGHT_WHITE, System.out),
-    INFO(Color.BRIGHT_GREEN, System.out),
-    SYSTEM(Color.SKY_BLUE, System.out),
-    WARNING(Color.WARM_YELLOW, System.out),
-    DEBUG(Color.SOFT_PURPLE, System.out);
+    ERROR(Color.RED, System.err),
+    INFO(Color.GREEN, System.out),
+    SUCCESS(Color.MAGENTA, System.out);
 
     PrintStream out;
 
     enum Color {
-        SOFT_GRAY("\033[38;5;246m"),
-        WARM_YELLOW("\033[38;5;220m"),
-        BRIGHT_BLUE("\033[38;5;33m"),
-        BRIGHT_WHITE("\033[38;5;255m"),
-        BRIGHT_RED("\033[38;5;196m"),
-        BRIGHT_GREEN("\033[38;5;46m"),
-        BRIGHT_YELLOW("\033[38;5;226m"),
-        SKY_BLUE("\033[38;5;39m"),
-        SOFT_PURPLE("\033[38;5;129m"),
-        BRIGHT_CYAN("\033[38;5;51m"),
-        BLACK_ON_WHITE("\033[38;5;232;48;5;255m");
+        RED("\033[38;2;220;50;47m"),          // Solarized Red #dc322f
+        MAGENTA("\033[38;2;211;54;130m"),     // Solarized Magenta #d33682
+        GREEN("\033[38;2;133;153;0m");        // Solarized Green #859900
 
         String code;
 
@@ -48,12 +37,8 @@ enum Log {
         this.out = out;
     }
 
-    public String formatted(String raw) {
-        return this.value.formatted(raw);
-    }
-
     public void out(String message) {
-        var colored = formatted(message);
+        var colored = this.value.formatted(message);
         this.out.println(colored);
     }
 
@@ -65,13 +50,13 @@ enum Log {
         Log.INFO.out(message);
     }
 
-    public static void system(String message){
-        Log.SYSTEM.out(message);
+    public static void success(String message){
+        Log.SUCCESS.out(message);
     }
 
     public static void stop(String message){
         error(message);
-        System.exit(1);
+        System.exit(0);
     }
 }
 
@@ -87,9 +72,10 @@ void main(String... args) {
 
     try {
         Files.writeString(path, content);
-        Log.info("---\n");
+        Log.info("---");
         Log.info(content);
-        Log.info("Clipboard saved to: " + path.toAbsolutePath());
+        Log.info("---");
+        Log.success("Clipboard saved to: " + path.toAbsolutePath());
     } catch (Exception e) {
         Log.stop("Failed to write file: " + e.getMessage());
     }
