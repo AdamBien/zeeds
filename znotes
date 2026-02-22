@@ -20,9 +20,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Properties;
 
-String version = "2026-02-18.1";
+String version = "2026-02-22.1";
 String APP_NAME = "znotes";
-String NOTES_FILE = "thoughts.md";
+String NOTES_FILE = "notes.md";
 
 enum Log {
 
