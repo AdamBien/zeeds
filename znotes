@@ -11,6 +11,7 @@
  *
  * Usage: znotes <thought>
  *        znotes -l           (list all thoughts)
+ *        znotes -o           (open notes file with default application)
  */
 
 import java.nio.file.Files;
@@ -136,10 +137,25 @@ void listThoughts(Path folder) {
     }
 }
 
+void openNotes(Path folder) {
+    var file = folder.resolve(NOTES_FILE);
+    if (!Files.exists(file)) {
+        Log.info("No thoughts yet in " + file);
+        return;
+    }
+    try {
+        new ProcessBuilder("open", file.toString()).start();
+        Log.info("znotes v" + version + " - opening " + file);
+    } catch (Exception e) {
+        Log.stop("Failed to open notes: " + e.getMessage());
+    }
+}
+
 void main(String... args) {
     if (args.length == 0) {
         Log.info("Usage: znotes <thought>  - add a thought");
         Log.info("       znotes -l         - list all thoughts");
+        Log.info("       znotes -o         - open notes file");
         return;
     }
 
@@ -148,6 +164,11 @@ void main(String... args) {
 
     if ("-l".equals(args[0])) {
         listThoughts(folder);
+        return;
+    }
+
+    if ("-o".equals(args[0])) {
+        openNotes(folder);
         return;
     }
 
