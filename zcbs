@@ -66,7 +66,7 @@ enum Log {
     }
 }
 
-String version = "2026-02-26.1";
+String version = "2026-02-26.2";
 
 void main(String... args) {
     Log.info("zcbs %s%n".formatted(version));
@@ -90,7 +90,10 @@ void main(String... args) {
 }
 
 String sanitize(String input){
-    return input.trim();
+    return input.lines()
+         .map(String::trim)
+         .collector(Collectors.joining(System.lineSeparator()));
+    
 }
 
 String clipboardContent() {
