@@ -92,7 +92,7 @@ void main(String... args) {
 String sanitize(String input){
     return input.lines()
          .map(String::trim)
-         .collector(Collectors.joining(System.lineSeparator()));
+         .collect(Collectors.joining(System.lineSeparator()));
     
 }
 
