@@ -66,7 +66,7 @@ enum Log {
     }
 }
 
-String version = "2026-02-20.1";
+String version = "2026-02-26.1";
 
 void main(String... args) {
     Log.info("zcbs %s%n".formatted(version));
@@ -76,7 +76,8 @@ void main(String... args) {
     }
 
     var filename = args[0];
-    var content = clipboardContent();
+    var rawContent = clipboardContent();
+    var content = sanitize(rawContent);
     var path = Path.of(filename);
 
     try {
@@ -86,6 +87,10 @@ void main(String... args) {
     } catch (Exception e) {
         Log.stop("Failed to write file: " + e.getMessage());
     }
+}
+
+String sanitize(String input){
+    return input.trim();
 }
 
 String clipboardContent() {
