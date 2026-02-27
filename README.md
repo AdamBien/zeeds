@@ -17,3 +17,4 @@ Zero-dependency Java 25+ source files designed as starting points for your proje
 - [**zargs**](zargs) — Idiomatic argument parsing with enum-based options. Usage: `./zargs [options] <files...>`
 - [**ztwins**](ztwins) — Find files with identical content. Usage: `./ztwins <file> <directory>`
 - [**zdate**](zdate) — Print and copy today's date to the clipboard. Usage: `./zdate` (dd.MM.yyyy) or `./zdate -y` (yyyy.MM.dd)
+- [**zzip**](zzip) — Zip a directory into a `.zip` file. Usage: `./zzip <directory>`
