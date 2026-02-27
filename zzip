@@ -20,7 +20,8 @@ void main(String... args) {
         System.exit(1);
     }
     var zipFile = Path.of(dir.getFileName() + ".zip");
-    try (var zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+    try (var fos = Files.newOutputStream(zipFile); 
+        var zos = new ZipOutputStream(fos)) {
         try (var paths = Files.walk(dir)) {
             paths
             .filter(Files::isRegularFile)
@@ -35,7 +36,8 @@ void main(String... args) {
 
 void addEntry(ZipOutputStream zos, Path base, Path file) {
     try {
-        var entry = new ZipEntry(base.relativize(file).toString());
+        var entryName =  base.relativize(file).toString();
+        var entry = new ZipEntry(entryName);
         zos.putNextEntry(entry);
         Files.copy(file, zos);
         zos.closeEntry();
