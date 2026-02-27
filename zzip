@@ -1,0 +1,45 @@
+#!/usr/bin/env -S java --source 25
+
+String version = "2026-02-24.1";
+
+void main(String... args) {
+    if (args.length == 0 || args[0].equals("-help")) {
+        IO.println("Usage: zzip <directory>");
+        IO.println("  Zips a directory into <directory>.zip");
+        IO.println("  -help     Show this help");
+        IO.println("  -version  Show version");
+        return;
+    }
+    if (args[0].equals("-version")) {
+        IO.println("zzip " + version);
+        return;
+    }
+    var dir = Path.of(args[0]);
+    if (!Files.isDirectory(dir)) {
+        System.err.println("Not a directory: " + dir);
+        System.exit(1);
+    }
+    var zipFile = Path.of(dir.getFileName() + ".zip");
+    try (var zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+        try (var paths = Files.walk(dir)) {
+            paths
+            .filter(Files::isRegularFile)
+            .forEach(path -> addEntry(zos, dir, path));
+        }
+    } catch (IOException e) {
+        System.err.println("Error: " + e.getMessage());
+        System.exit(1);
+    }
+    IO.println(zipFile.toAbsolutePath());
+}
+
+void addEntry(ZipOutputStream zos, Path base, Path file) {
+    try {
+        var entry = new ZipEntry(base.relativize(file).toString());
+        zos.putNextEntry(entry);
+        Files.copy(file, zos);
+        zos.closeEntry();
+    } catch (IOException e) {
+        throw new UncheckedIOException(e);
+    }
+}
