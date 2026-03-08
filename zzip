@@ -1,6 +1,6 @@
 #!/usr/bin/env -S java --source 25
 
-String version = "2026-02-24.1";
+String version = "2026-02-27.1";
 
 void main(String... args) {
     if (args.length == 0 || args[0].equals("-help")) {
