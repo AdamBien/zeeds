@@ -21,7 +21,10 @@
 
 String version = "2026-03-12.1";
 
-static final String APP_NAME = "zlaunch";
+static final String APP_NAME = MethodHandles
+                                .lookup()
+                                .lookupClass()
+                                .getName();
 static final String PROPERTIES_FILE = "app.properties";
 
 Map<String, String> loadEntries() {
