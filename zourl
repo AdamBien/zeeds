@@ -1,0 +1,152 @@
+#!/usr/bin/env -S java --source 25
+
+import module java.desktop;
+
+/**
+ * zourl - Opens a configured URI with the system's default application.
+ *
+ * Configuration is loaded from (each overwrites the previous):
+ *   1. $HOME/.zourl/app.properties  (global)
+ *   2. ./app.properties             (local, current directory)
+ *   3. -D system properties         (CLI overrides)
+ *
+ * Required property:
+ *   uri=https://example.com
+ *
+ * Examples:
+ *   zourl
+ *   zourl -Duri=https://github.com
+ *
+ * Configuration based on https://github.com/AdamBien/zcfg
+ * Logging based on https://github.com/AdamBien/zcl
+ */
+
+String version = "2026-03-13.1";
+
+static final String APP_NAME = MethodHandles
+                                .lookup()
+                                .lookupClass()
+                                .getName();
+static final String PROPERTIES_FILE = "app.properties";
+static final String URI_KEY = "uri";
+
+void main(String... args) {
+    if (args.length > 0 && args[0].equals("-help")) {
+        IO.println("Usage: " + APP_NAME + " [options]");
+        IO.println("  -help     Show this help");
+        IO.println("  -version  Show version");
+        IO.println("");
+        IO.println("Opens the URI configured in " + PROPERTIES_FILE);
+        IO.println("  " + URI_KEY + "=https://example.com");
+        IO.println("");
+        IO.println("Config sources (each overwrites previous):");
+        IO.println("  $HOME/." + APP_NAME + "/" + PROPERTIES_FILE);
+        IO.println("  ./" + PROPERTIES_FILE);
+        IO.println("  -D flags (e.g., -D" + URI_KEY + "=https://example.com)");
+        return;
+    }
+    if (args.length > 0 && args[0].equals("-version")) {
+        IO.println(APP_NAME + " " + version);
+        return;
+    }
+
+    ZCfg.load(APP_NAME);
+    var raw = ZCfg.string(URI_KEY);
+    if (raw == null || raw.isBlank()) {
+        Log.stop("No '" + URI_KEY + "' configured. Set it in " + PROPERTIES_FILE + " or pass -D" + URI_KEY + "=<uri>");
+    }
+
+    var uri = URI.create(raw);
+    Log.info(APP_NAME + " " + version);
+    Log.info("Opening: " + uri);
+
+    try {
+        Desktop.getDesktop().browse(uri);
+    } catch (IOException e) {
+        Log.stop("Failed to open URI: " + e.getMessage());
+    }
+}
+
+class ZCfg {
+
+    static Properties CACHE;
+
+    static void load(String appName) {
+        CACHE = loadProperties(appName);
+    }
+
+    static Properties loadProperties(String appName) {
+        var properties = new Properties();
+        var userHome = System.getProperty("user.home");
+        var globalConfig = Path.of(userHome, "." + appName, PROPERTIES_FILE);
+        if (Files.exists(globalConfig))
+            loadFromFile(globalConfig, properties);
+        var localConfig = Path.of(PROPERTIES_FILE);
+        if (Files.exists(localConfig))
+            loadFromFile(localConfig, properties);
+        properties.putAll(System.getProperties());
+        return properties;
+    }
+
+    static void loadFromFile(Path file, Properties properties) {
+        try (var reader = Files.newBufferedReader(file)) {
+            properties.load(reader);
+        } catch (IOException e) {
+            Log.stop("Cannot load properties from: " + file + " (" + e.getMessage() + ")");
+        }
+    }
+
+    static String string(String key) {
+        return CACHE.getProperty(key);
+    }
+
+    static String string(String key, String defaultValue) {
+        return CACHE.getProperty(key, defaultValue);
+    }
+}
+
+enum Log {
+
+    ERROR(Color.BRIGHT_RED, System.err),
+    INFO(Color.BRIGHT_GREEN, System.out),
+    WARNING(Color.WARM_YELLOW, System.out);
+
+    PrintStream out;
+
+    enum Color {
+        WARM_YELLOW("\033[38;5;220m"),
+        BRIGHT_RED("\033[38;5;196m"),
+        BRIGHT_GREEN("\033[38;5;46m");
+
+        String code;
+
+        Color(String code) {
+            this.code = code;
+        }
+    }
+
+    String value;
+    static final String RESET = "\u001B[0m";
+
+    Log(Color color, PrintStream out) {
+        this.value = color.code + "%s" + RESET;
+        this.out = out;
+    }
+
+    void out(String message) {
+        this.out.println(this.value.formatted(message));
+    }
+
+    static void info(String message) {
+        INFO.out(message);
+    }
+
+    static void warning(String message) {
+        WARNING.out(message);
+    }
+
+    static void stop(String message) {
+        ERROR.out(message);
+        System.exit(1);
+    }
+}
