@@ -1,0 +1,230 @@
+#!/usr/bin/env -S java --source 25
+
+import module java.desktop;
+
+/**
+ * zcbnotes - Saves clipboard content to a timestamped file.
+ *
+ * Configuration is loaded from (each overwrites the previous):
+ *   1. $HOME/.zcbnotes/app.properties  (global)
+ *   2. ./app.properties               (local, current directory)
+ *   3. -D system properties            (CLI overrides)
+ *
+ * Required property:
+ *   notes.folder=~/zcbnotes  (default)
+ *
+ * Usage:
+ *   zcbnotes                 saves as 2026-03-16_14-30-00.md
+ *   zcbnotes meeting         saves as 2026-03-16_14-30-00_meeting.md
+ *   zcbnotes -l              list saved notes
+ *   zcbnotes -o              open notes folder
+ *
+ * Configuration based on https://github.com/AdamBien/zcfg
+ * Logging based on https://github.com/AdamBien/zcl
+ */
+
+String version = "2026-03-16.1";
+
+static final String APP_NAME = MethodHandles
+                                .lookup()
+                                .lookupClass()
+                                .getName();
+static final String PROPERTIES_FILE = "app.properties";
+static final String FOLDER_KEY = "notes.folder";
+static final String EXTENSION = ".md";
+
+void main(String... args) {
+    if (args.length > 0 && args[0].equals("-help")) {
+        IO.println("Usage: " + APP_NAME + " [ending] [options]");
+        IO.println("  <ending>  Optional suffix for the filename");
+        IO.println("  -l        List saved notes");
+        IO.println("  -o        Open notes folder");
+        IO.println("  -help     Show this help");
+        IO.println("  -version  Show version");
+        IO.println("");
+        IO.println("Config sources (each overwrites previous):");
+        IO.println("  $HOME/." + APP_NAME + "/" + PROPERTIES_FILE);
+        IO.println("  ./" + PROPERTIES_FILE);
+        IO.println("  -D flags (e.g., -D" + FOLDER_KEY + "=/path/to/notes)");
+        return;
+    }
+    if (args.length > 0 && args[0].equals("-version")) {
+        IO.println(APP_NAME + " " + version);
+        return;
+    }
+
+    ZCfg.load(APP_NAME);
+    var folder = notesFolder();
+
+    if (args.length > 0 && args[0].equals("-l")) {
+        listNotes(folder);
+        return;
+    }
+    if (args.length > 0 && args[0].equals("-o")) {
+        openFolder(folder);
+        return;
+    }
+
+    var ending = args.length > 0 ? args[0] : null;
+    saveClipboard(folder, ending);
+}
+
+Path notesFolder() {
+    var userHome = System.getProperty("user.home");
+    var defaultFolder = Path.of(userHome, APP_NAME).toString();
+    return Path.of(ZCfg.string(FOLDER_KEY, defaultFolder));
+}
+
+String timestamp() {
+    return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+}
+
+String fileName(String ending) {
+    var ts = timestamp();
+    if (ending == null || ending.isBlank())
+        return ts + EXTENSION;
+    return ts + "_" + ending + EXTENSION;
+}
+
+void saveClipboard(Path folder, String ending) {
+    var content = clipboardContent();
+    if (content.isBlank())
+        Log.stop("Clipboard is empty");
+
+    try {
+        Files.createDirectories(folder);
+        var file = folder.resolve(fileName(ending));
+        Files.writeString(file, content);
+        Log.info(APP_NAME + " " + version);
+        Log.info("Saved to: " + file);
+    } catch (IOException e) {
+        Log.stop("Failed to save note: " + e.getMessage());
+    }
+}
+
+String clipboardContent() {
+    try {
+        var clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        return (String) clipboard.getData(DataFlavor.stringFlavor);
+    } catch (Exception e) {
+        Log.stop("Failed to read clipboard: " + e.getMessage());
+        return "";
+    }
+}
+
+void listNotes(Path folder) {
+    if (!Files.exists(folder)) {
+        Log.info("No notes yet in " + folder);
+        return;
+    }
+    try (var files = Files.list(folder)) {
+        var notes = files
+                .filter(this::isNoteFile)
+                .sorted()
+                .toList();
+        if (notes.isEmpty()) {
+            Log.info("No notes yet in " + folder);
+            return;
+        }
+        Log.info(APP_NAME + " " + version + " - " + folder);
+        notes.forEach(note -> Log.info("  " + note.getFileName()));
+    } catch (IOException e) {
+        Log.stop("Failed to list notes: " + e.getMessage());
+    }
+}
+
+boolean isNoteFile(Path path) {
+    return path.toString().endsWith(EXTENSION) && Files.isRegularFile(path);
+}
+
+void openFolder(Path folder) {
+    if (!Files.exists(folder)) {
+        Log.info("No notes yet in " + folder);
+        return;
+    }
+    try {
+        Desktop.getDesktop().open(folder.toFile());
+        Log.info(APP_NAME + " " + version);
+        Log.info("Opening: " + folder);
+    } catch (IOException e) {
+        Log.stop("Failed to open folder: " + e.getMessage());
+    }
+}
+
+class ZCfg {
+
+    static Properties CACHE;
+
+    static void load(String appName) {
+        CACHE = loadProperties(appName);
+    }
+
+    static Properties loadProperties(String appName) {
+        var properties = new Properties();
+        var userHome = System.getProperty("user.home");
+        var globalConfig = Path.of(userHome, "." + appName, PROPERTIES_FILE);
+        if (Files.exists(globalConfig))
+            loadFromFile(globalConfig, properties);
+        var localConfig = Path.of(PROPERTIES_FILE);
+        if (Files.exists(localConfig))
+            loadFromFile(localConfig, properties);
+        properties.putAll(System.getProperties());
+        return properties;
+    }
+
+    static void loadFromFile(Path file, Properties properties) {
+        try (var reader = Files.newBufferedReader(file)) {
+            properties.load(reader);
+        } catch (IOException e) {
+            Log.stop("Cannot load properties from: " + file + " (" + e.getMessage() + ")");
+        }
+    }
+
+    static String string(String key) {
+        return CACHE.getProperty(key);
+    }
+
+    static String string(String key, String defaultValue) {
+        return CACHE.getProperty(key, defaultValue);
+    }
+}
+
+enum Log {
+
+    ERROR(Color.BRIGHT_RED, System.err),
+    INFO(Color.BRIGHT_GREEN, System.out);
+
+    PrintStream out;
+
+    enum Color {
+        BRIGHT_RED("\033[38;5;196m"),
+        BRIGHT_GREEN("\033[38;5;46m");
+
+        String code;
+
+        Color(String code) {
+            this.code = code;
+        }
+    }
+
+    String value;
+    static final String RESET = "\u001B[0m";
+
+    Log(Color color, PrintStream out) {
+        this.value = color.code + "%s" + RESET;
+        this.out = out;
+    }
+
+    void out(String message) {
+        this.out.println(this.value.formatted(message));
+    }
+
+    static void info(String message) {
+        INFO.out(message);
+    }
+
+    static void stop(String message) {
+        ERROR.out(message);
+        System.exit(1);
+    }
+}
