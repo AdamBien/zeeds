@@ -1,0 +1,24 @@
+#!/usr/bin/env -S java --source 25
+
+import javax.imageio.ImageIO;
+import java.lang.invoke.MethodHandles;
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-03-19.1";
+
+void main(String... args) throws Exception {
+    if (args.length == 0 || args[0].equals("-help")) {
+        IO.println("Usage: " + name + " <image-file>");
+        IO.println("  Prints image dimensions (width x height)");
+        IO.println("  -help     Show this help");
+        IO.println("  -version  Show version");
+        return;
+    }
+    if (args[0].equals("-version")) {
+        IO.println(name + " " + version);
+        return;
+    }
+    var path = Path.of(args[0]);
+    var image = ImageIO.read(path.toFile());
+    IO.println(image.getWidth() + " x " + image.getHeight());
+}
