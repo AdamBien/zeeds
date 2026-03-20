@@ -9,7 +9,7 @@ String version = "2026-03-19.1";
 void main(String... args) throws Exception {
     if (args.length == 0 || args[0].equals("-help")) {
         IO.println("Usage: " + name + " <image-file>");
-        IO.println("  Prints image dimensions (width x height)");
+        IO.println("  Prints image dimensions (width x height) and file size");
         IO.println("  -help     Show this help");
         IO.println("  -version  Show version");
         return;
@@ -20,5 +20,6 @@ void main(String... args) throws Exception {
     }
     var path = Path.of(args[0]);
     var image = ImageIO.read(path.toFile());
-    IO.println(image.getWidth() + " x " + image.getHeight());
+    var sizeKB = Files.size(path) / 1024;
+    IO.println(image.getWidth() + " x " + image.getHeight() + " " + sizeKB + " KB");
 }
