@@ -1,0 +1,41 @@
+#!/usr/bin/env -S java --source 25
+
+import java.lang.invoke.MethodHandles;
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-03-21.2";
+
+int BAR_WIDTH = 20;
+String FILLED = "█";
+String EMPTY = "░";
+String RESET = "\u001B[0m";
+
+String BLUE = "\033[38;5;33m";
+String VIOLET = "\033[38;5;129m";
+
+String render(int iteration, int max) {
+    int filled = (int) ((double) iteration / max * BAR_WIDTH);
+    int empty = BAR_WIDTH - filled;
+    return BLUE + "[" + FILLED.repeat(filled) + RESET
+            + VIOLET + EMPTY.repeat(empty) + RESET
+            + BLUE + "]" + RESET
+            + "  " + iteration + "/" + max;
+}
+
+void main(String... args) {
+    if (args.length == 0 || "-help".equals(args[0])) {
+        IO.println("Usage: " + name + " <iteration> <max>");
+        IO.println("  -help     Show this help");
+        IO.println("  -version  Show version");
+        return;
+    }
+    if ("-version".equals(args[0])) {
+        IO.println(name + " " + version);
+        return;
+    }
+    if (args.length < 2) {
+        System.err.println("Usage: " + name + " <iteration> <max>");
+        System.exit(1);
+    }
+    IO.println(render(Integer.parseInt(args[0]), Integer.parseInt(args[1])));
+}
