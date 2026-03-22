@@ -17,5 +17,5 @@ void main() {
   var dir = Path.of("").toAbsolutePath().getFileName();
   var os = ManagementFactory.getOperatingSystemMXBean();
   var load = "%.1f".formatted(os.getSystemLoadAverage());
-  IO.print("%%F{cyan}%s%%f %%F{yellow}[load:%s]%%f ❯ ".formatted(dir, load));
+  IO.print("%%F{cyan}%s%%f %%F{yellow}[%s]%%f ❯ ".formatted(dir, load));
 }
