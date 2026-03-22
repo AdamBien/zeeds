@@ -1,0 +1,210 @@
+#!/usr/bin/env -S java --source 25
+
+import module java.desktop;
+
+/**
+ * zf2cb - Zero dependencies File to Clipboard
+ *
+ * Loads a file from the script's configuration folder into the system clipboard.
+ *
+ * Configuration is loaded from (each overwrites the previous):
+ *   1. $HOME/.zf2cb/app.properties  (global)
+ *   2. ./app.properties             (local, current directory)
+ *   3. -D system properties         (CLI overrides)
+ *
+ * Property:
+ *   files.folder=~/.zf2cb  (default)
+ *
+ * Usage:
+ *   zf2cb                  loads content.txt into clipboard
+ *   zf2cb <filename>       loads specified file into clipboard
+ *   zf2cb -l               list available files
+ *   zf2cb -o               open files folder
+ *
+ * Configuration based on https://github.com/AdamBien/zcfg
+ * Logging based on https://github.com/AdamBien/zcl
+ */
+
+String version = "2026-03-22.1";
+
+static final String APP_NAME = MethodHandles
+                                .lookup()
+                                .lookupClass()
+                                .getName();
+static final String PROPERTIES_FILE = "app.properties";
+static final String DEFAULT_FILE = "content.txt";
+static final String FOLDER_KEY = "files.folder";
+
+void main(String... args) {
+    if (args.length > 0 && args[0].equals("-help")) {
+        IO.println("Usage: " + APP_NAME + " [filename] [options]");
+        IO.println("  [filename]  File to load into clipboard (default: " + DEFAULT_FILE + ")");
+        IO.println("  -l          List available files");
+        IO.println("  -o          Open files folder");
+        IO.println("  -help       Show this help");
+        IO.println("  -version    Show version");
+        IO.println("");
+        IO.println("Config sources (each overwrites previous):");
+        IO.println("  $HOME/." + APP_NAME + "/" + PROPERTIES_FILE);
+        IO.println("  ./" + PROPERTIES_FILE);
+        IO.println("  -D flags (e.g., -D" + FOLDER_KEY + "=/path/to/files)");
+        return;
+    }
+    if (args.length > 0 && args[0].equals("-version")) {
+        IO.println(APP_NAME + " " + version);
+        return;
+    }
+
+    ZCfg.load(APP_NAME);
+    var folder = filesFolder();
+
+    if (args.length > 0 && args[0].equals("-l")) {
+        listFiles(folder);
+        return;
+    }
+    if (args.length > 0 && args[0].equals("-o")) {
+        openFolder(folder);
+        return;
+    }
+
+    var filename = args.length > 0 ? args[0] : DEFAULT_FILE;
+    loadToClipboard(folder, filename);
+}
+
+Path filesFolder() {
+    var userHome = System.getProperty("user.home");
+    var defaultFolder = Path.of(userHome, "." + APP_NAME).toString();
+    return Path.of(ZCfg.string(FOLDER_KEY, defaultFolder));
+}
+
+void loadToClipboard(Path folder, String filename) {
+    var file = folder.resolve(filename);
+    if (!Files.exists(file))
+        Log.stop("File not found: " + file);
+    if (!Files.isRegularFile(file))
+        Log.stop("Not a file: " + file);
+    try {
+        var content = Files.readString(file);
+        if (content.isBlank())
+            Log.stop("File is empty: " + file);
+        var selection = new StringSelection(content);
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+        Log.info(APP_NAME + " " + version);
+        Log.info("Loaded to clipboard: " + file.getFileName() + " (" + content.length() + " chars)");
+    } catch (IOException e) {
+        Log.stop("Failed to read file: " + e.getMessage());
+    }
+}
+
+void listFiles(Path folder) {
+    if (!Files.exists(folder)) {
+        Log.info("No files yet in " + folder);
+        return;
+    }
+    try (var files = Files.list(folder)) {
+        var entries = files
+                .filter(this::isListableFile)
+                .sorted()
+                .toList();
+        if (entries.isEmpty()) {
+            Log.info("No files yet in " + folder);
+            return;
+        }
+        Log.info(APP_NAME + " " + version + " - " + folder);
+        entries.forEach(entry -> Log.info("  " + entry.getFileName()));
+    } catch (IOException e) {
+        Log.stop("Failed to list files: " + e.getMessage());
+    }
+}
+
+boolean isListableFile(Path path) {
+    return Files.isRegularFile(path) && !path.getFileName().toString().equals(PROPERTIES_FILE);
+}
+
+void openFolder(Path folder) {
+    if (!Files.exists(folder)) {
+        Log.info("No files yet in " + folder);
+        return;
+    }
+    try {
+        Desktop.getDesktop().open(folder.toFile());
+        Log.info(APP_NAME + " " + version);
+        Log.info("Opening: " + folder);
+    } catch (IOException e) {
+        Log.stop("Failed to open folder: " + e.getMessage());
+    }
+}
+
+class ZCfg {
+
+    static Properties CACHE;
+
+    static void load(String appName) {
+        CACHE = loadProperties(appName);
+    }
+
+    static Properties loadProperties(String appName) {
+        var properties = new Properties();
+        var userHome = System.getProperty("user.home");
+        var globalConfig = Path.of(userHome, "." + appName, PROPERTIES_FILE);
+        if (Files.exists(globalConfig))
+            loadFromFile(globalConfig, properties);
+        var localConfig = Path.of(PROPERTIES_FILE);
+        if (Files.exists(localConfig))
+            loadFromFile(localConfig, properties);
+        properties.putAll(System.getProperties());
+        return properties;
+    }
+
+    static void loadFromFile(Path file, Properties properties) {
+        try (var reader = Files.newBufferedReader(file)) {
+            properties.load(reader);
+        } catch (IOException e) {
+            Log.stop("Cannot load properties from: " + file + " (" + e.getMessage() + ")");
+        }
+    }
+
+    static String string(String key, String defaultValue) {
+        return CACHE.getProperty(key, defaultValue);
+    }
+}
+
+enum Log {
+
+    ERROR(Color.BRIGHT_RED, System.err),
+    INFO(Color.BRIGHT_GREEN, System.out);
+
+    PrintStream out;
+
+    enum Color {
+        BRIGHT_RED("\033[38;5;196m"),
+        BRIGHT_GREEN("\033[38;5;46m");
+
+        String code;
+
+        Color(String code) {
+            this.code = code;
+        }
+    }
+
+    String value;
+    static final String RESET = "\u001B[0m";
+
+    Log(Color color, PrintStream out) {
+        this.value = color.code + "%s" + RESET;
+        this.out = out;
+    }
+
+    void out(String message) {
+        this.out.println(this.value.formatted(message));
+    }
+
+    static void info(String message) {
+        INFO.out(message);
+    }
+
+    static void stop(String message) {
+        ERROR.out(message);
+        System.exit(1);
+    }
+}
