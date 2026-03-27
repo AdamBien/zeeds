@@ -1,0 +1,192 @@
+#!/usr/bin/env -S java --source 25
+
+import module java.desktop;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.stream.Stream;
+
+/**
+ * zheader - Zero dependencies Header Inserter
+ *
+ * Reads a header from the system clipboard and prepends it to all .java files
+ * in the current directory (recursively) that do not already contain it.
+ *
+ * Usage:
+ *   zheader              Prepend clipboard header to all .java files
+ *   zheader <dir>        Prepend clipboard header to .java files in <dir>
+ *   zheader -dry         Show what would be changed without modifying files
+ *   zheader -help        Show this help
+ *   zheader -version     Show version
+ *
+ * Logging based on https://github.com/AdamBien/zcl
+ */
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-03-27.1";
+
+void main(String... args) {
+    if (args.length > 0 && args[0].equals("-help")) {
+        IO.println("Usage: " + name + " [dir] [options]");
+        IO.println("  <dir>       Target directory (default: current)");
+        IO.println("  -dry        Dry run — show changes without writing");
+        IO.println("  -help       Show this help");
+        IO.println("  -version    Show version");
+        return;
+    }
+    if (args.length > 0 && args[0].equals("-version")) {
+        IO.println(name + " " + version);
+        return;
+    }
+
+    var dryRun = Stream
+            .of(args)
+            .anyMatch("-dry"::equals);
+    var dir = Stream.of(args)
+            .filter(a -> !a.startsWith("-"))
+            .findFirst()
+            .map(Path::of)
+            .orElse(Path.of("."));
+
+    if (!Files.isDirectory(dir))
+        Log.stop("Not a directory: " + dir);
+
+    var header = readClipboard();
+    if (header.isBlank())
+        Log.stop("Clipboard is empty — copy a header first");
+
+    var normalizedHeader = header.endsWith("\n") ? header : header + "\n";
+
+    Log.info(name + " " + version + (dryRun ? " [dry run]" : ""));
+    Log.info("Header: " + summarize(normalizedHeader));
+
+    var javaFiles = findJavaFiles(dir);
+    if (javaFiles.isEmpty())
+        Log.stop("No .java files found in " + dir);
+
+    var modified = 0;
+    var skipped = 0;
+
+    for (var file : javaFiles) {
+        if (applyHeader(file, normalizedHeader, dryRun))
+            modified++;
+        else
+            skipped++;
+    }
+
+    Log.info("Done: %d modified, %d skipped (of %d files)".formatted(modified, skipped, javaFiles.size()));
+}
+
+String readClipboard() {
+    try {
+        var clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        var contents = clipboard.getContents(null);
+        if (contents == null || !contents.isDataFlavorSupported(DataFlavor.stringFlavor))
+            return "";
+        return (String) contents.getTransferData(DataFlavor.stringFlavor);
+    } catch (UnsupportedFlavorException | IOException e) {
+        Log.stop("Failed to read clipboard: " + e.getMessage());
+        return "";
+    }
+}
+
+java.util.List<Path> findJavaFiles(Path dir) {
+    try (var stream = Files.walk(dir)) {
+        return stream
+                .filter(Files::isRegularFile)
+                .filter(this::isJavaFile)
+                .sorted()
+                .toList();
+    } catch (IOException e) {
+        Log.stop("Failed to scan directory: " + e.getMessage());
+        return java.util.List.of();
+    }
+}
+
+boolean isJavaFile(Path path) {
+    return path.toString().endsWith(".java");
+}
+
+boolean applyHeader(Path file, String header, boolean dryRun) {
+    try {
+        var content = Files.readString(file);
+        if (this.shouldSkip(content, header)) {
+            Log.info("  skipped: " + file);
+            return false;
+        }
+        if (dryRun) {
+            Log.info("  would modify: " + file);
+            return true;
+        }
+        Files.writeString(file, header + content);
+        Log.info("  modified: " + file);
+        return true;
+    } catch (IOException e) {
+        Log.error("  failed: " + file + " — " + e.getMessage());
+        return false;
+    }
+}
+
+boolean shouldSkip(String fileContent, String header) {
+    var firstContentLine = fileContent
+            .lines()
+            .findFirst()
+            .orElse("");
+    return header
+            .lines()
+            .findFirst()
+            .filter(firstContentLine::startsWith)
+            .isPresent();
+}
+
+String summarize(String header) {
+    var firstLine = header.lines().findFirst().orElse("");
+    var lineCount = (int) header.lines().count();
+    return "\"%s\" (%d lines)".formatted(firstLine.trim(), lineCount);
+}
+
+enum Log {
+
+    ERROR(Color.BRIGHT_RED, System.err),
+    INFO(Color.BRIGHT_GREEN, System.out);
+
+    PrintStream out;
+
+    enum Color {
+        BRIGHT_RED("\033[38;5;196m"),
+        BRIGHT_GREEN("\033[38;5;46m");
+
+        String code;
+
+        Color(String code) {
+            this.code = code;
+        }
+    }
+
+    String value;
+    static final String RESET = "\u001B[0m";
+
+    Log(Color color, PrintStream out) {
+        this.value = color.code + "%s" + RESET;
+        this.out = out;
+    }
+
+    void out(String message) {
+        this.out.println(this.value.formatted(message));
+    }
+
+    static void info(String message) {
+        INFO.out(message);
+    }
+
+    static void error(String message) {
+        ERROR.out(message);
+    }
+
+    static void stop(String message) {
+        ERROR.out(message);
+        System.exit(1);
+    }
+}
