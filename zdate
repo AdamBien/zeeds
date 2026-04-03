@@ -57,9 +57,11 @@ enum Log {
 
 void main(String[] args) {
     var pattern = args.length > 0 && "-y".equals(args[0]) ? "yyyy.MM.dd" : "dd.MM.yyyy";
-    var date = LocalDate.now().format(DateTimeFormatter.ofPattern(pattern));
+    var now = LocalDate.now();
+    var date = now.format(DateTimeFormatter.ofPattern(pattern));
+    var dayOfWeek = now.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
     copyToClipboard(date);
-    Log.info("zdate v" + version + " - " + date + " (copied to clipboard)");
+    Log.info("zdate v" + version + " - " + dayOfWeek + " " + date + " (copied to clipboard)");
 }
 
 void copyToClipboard(String text) {
