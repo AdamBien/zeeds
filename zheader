@@ -60,7 +60,15 @@ void main(String... args) {
     var normalizedHeader = header.endsWith("\n") ? header : header + "\n";
 
     Log.info(name + " " + version + (dryRun ? " [dry run]" : ""));
-    Log.info("Header: " + summarize(normalizedHeader));
+    Log.info("Header from clipboard:");
+    System.out.println(normalizedHeader);
+
+    var console = System.console();
+    if (console == null)
+        Log.stop("No console available");
+    var answer = console.readLine("Proceed? [y/N] ");
+    if (answer == null || !answer.strip().equalsIgnoreCase("y"))
+        return;
 
     var javaFiles = findJavaFiles(dir);
     if (javaFiles.isEmpty())
