@@ -25,57 +25,46 @@ import module java.desktop;
  * Logging based on https://github.com/AdamBien/zcl
  */
 
-String version = "2026-03-22.1";
+String version = "2026-03-24.1";
 
-static final String APP_NAME = MethodHandles
+static final String APP_NAME = "zf2cb";
+static final String CONFIGURATION_NAME = MethodHandles
                                 .lookup()
                                 .lookupClass()
                                 .getName();
-static final String PROPERTIES_FILE = "app.properties";
-static final String DEFAULT_FILE = "content.txt";
-static final String FOLDER_KEY = "files.folder";
 
 void main(String... args) {
     if (args.length > 0 && args[0].equals("-help")) {
-        IO.println("Usage: " + APP_NAME + " [filename] [options]");
-        IO.println("  [filename]  File to load into clipboard (default: " + DEFAULT_FILE + ")");
+        IO.println("Usage: " + APP_NAME + " [options]");
         IO.println("  -l          List available files");
         IO.println("  -o          Open files folder");
         IO.println("  -help       Show this help");
         IO.println("  -version    Show version");
         IO.println("");
-        IO.println("Config sources (each overwrites previous):");
-        IO.println("  $HOME/." + APP_NAME + "/" + PROPERTIES_FILE);
-        IO.println("  ./" + PROPERTIES_FILE);
-        IO.println("  -D flags (e.g., -D" + FOLDER_KEY + "=/path/to/files)");
         return;
     }
+
+    var contentFile = "%s.txt".formatted(CONFIGURATION_NAME);
+    var homeFolder = System.getProperty("user.home");
+    var appFolder = Path.of(homeFolder,"."+APP_NAME);
+
     if (args.length > 0 && args[0].equals("-version")) {
         IO.println(APP_NAME + " " + version);
         return;
     }
 
-    ZCfg.load(APP_NAME);
-    var folder = filesFolder();
 
     if (args.length > 0 && args[0].equals("-l")) {
-        listFiles(folder);
+        listFiles(appFolder);
         return;
     }
     if (args.length > 0 && args[0].equals("-o")) {
-        openFolder(folder);
+        openFolder(appFolder);
         return;
     }
-
-    var filename = args.length > 0 ? args[0] : DEFAULT_FILE;
-    loadToClipboard(folder, filename);
+    loadToClipboard(appFolder, contentFile);
 }
 
-Path filesFolder() {
-    var userHome = System.getProperty("user.home");
-    var defaultFolder = Path.of(userHome, "." + APP_NAME).toString();
-    return Path.of(ZCfg.string(FOLDER_KEY, defaultFolder));
-}
 
 void loadToClipboard(Path folder, String filename) {
     var file = folder.resolve(filename);
@@ -103,7 +92,7 @@ void listFiles(Path folder) {
     }
     try (var files = Files.list(folder)) {
         var entries = files
-                .filter(this::isListableFile)
+                .filter(Files::isRegularFile)
                 .sorted()
                 .toList();
         if (entries.isEmpty()) {
@@ -117,9 +106,6 @@ void listFiles(Path folder) {
     }
 }
 
-boolean isListableFile(Path path) {
-    return Files.isRegularFile(path) && !path.getFileName().toString().equals(PROPERTIES_FILE);
-}
 
 void openFolder(Path folder) {
     if (!Files.exists(folder)) {
@@ -135,39 +121,6 @@ void openFolder(Path folder) {
     }
 }
 
-class ZCfg {
-
-    static Properties CACHE;
-
-    static void load(String appName) {
-        CACHE = loadProperties(appName);
-    }
-
-    static Properties loadProperties(String appName) {
-        var properties = new Properties();
-        var userHome = System.getProperty("user.home");
-        var globalConfig = Path.of(userHome, "." + appName, PROPERTIES_FILE);
-        if (Files.exists(globalConfig))
-            loadFromFile(globalConfig, properties);
-        var localConfig = Path.of(PROPERTIES_FILE);
-        if (Files.exists(localConfig))
-            loadFromFile(localConfig, properties);
-        properties.putAll(System.getProperties());
-        return properties;
-    }
-
-    static void loadFromFile(Path file, Properties properties) {
-        try (var reader = Files.newBufferedReader(file)) {
-            properties.load(reader);
-        } catch (IOException e) {
-            Log.stop("Cannot load properties from: " + file + " (" + e.getMessage() + ")");
-        }
-    }
-
-    static String string(String key, String defaultValue) {
-        return CACHE.getProperty(key, defaultValue);
-    }
-}
 
 enum Log {
 
