@@ -20,7 +20,7 @@
  * Configuration based on https://github.com/AdamBien/zcfg
  */
 
-import module java.desktop;
+import java.awt.Desktop;
 
 static final String APP_NAME = MethodHandles.lookup().lookupClass().getName();
 static final String PROPERTIES_FILE = "app.properties";
