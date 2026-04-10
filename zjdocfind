@@ -1,0 +1,141 @@
+#!/usr/bin/env -S java --source 25
+
+/**
+ * zjdocfind - Find javadoc for a class by simple or fully qualified name.
+ *
+ * Configuration is loaded from (each overwrites the previous):
+ *   1. $HOME/.zjdocfind/app.properties  (global)
+ *   2. ./app.properties                 (local, current directory)
+ *   3. -D system properties             (CLI overrides)
+ *
+ * Configurable properties:
+ *   docs.root=~/work/devprogs/javadoc/docs/api
+ *
+ * Examples:
+ *   zjdocfind String
+ *   zjdocfind java.lang.String
+ *   zjdocfind -Ddocs.root=/path/to/javadoc/api String
+ *
+ * Configuration based on https://github.com/AdamBien/zcfg
+ */
+
+import java.lang.invoke.MethodHandles;
+import java.nio.file.*;
+
+static final String APP_NAME = MethodHandles.lookup().lookupClass().getName();
+static final String PROPERTIES_FILE = "app.properties";
+static final String DOCS_ROOT_KEY = "docs.root";
+static final String DOCS_ROOT_DEFAULT = System.getProperty("user.home") + "/work/devprogs/javadoc/docs/api";
+
+String version = "2026-04-10.2";
+
+void main(String... args) {
+    if (args.length == 0 || args[0].equals("-help")) {
+        IO.println("Usage: " + APP_NAME + " <className>");
+        IO.println("  Find javadoc for a class by simple or fully qualified name");
+        IO.println("  Examples: " + APP_NAME + " String");
+        IO.println("           " + APP_NAME + " java.lang.String");
+        IO.println("  -help     Show this help");
+        IO.println("  -version  Show version");
+        IO.println("");
+        IO.println("Config sources (each overwrites previous):");
+        IO.println("  $HOME/." + APP_NAME + "/" + PROPERTIES_FILE);
+        IO.println("  ./" + PROPERTIES_FILE);
+        IO.println("  -D flags (e.g., -D" + DOCS_ROOT_KEY + "=/path/to/api)");
+        return;
+    }
+    if (args[0].equals("-version")) {
+        IO.println(APP_NAME + " " + version);
+        return;
+    }
+
+    ZCfg.load(APP_NAME);
+    var docsRoot = Path.of(ZCfg.string(DOCS_ROOT_KEY, DOCS_ROOT_DEFAULT));
+
+    var className = args[0];
+    var results = isFullyQualified(className) ? findByQualifiedName(docsRoot, className) : findBySimpleName(docsRoot, className);
+    if (results.isEmpty()) {
+        System.err.println("No javadoc found for: " + className);
+        System.exit(1);
+    }
+    results.forEach(IO::println);
+}
+
+boolean isFullyQualified(String className) {
+    return className.contains(".");
+}
+
+List<String> findByQualifiedName(Path docsRoot, String qualifiedName) {
+    var htmlFile = qualifiedName.replace('.', '/') + ".html";
+    try (var stream = Files.walk(docsRoot, 1)) {
+        return stream
+                .filter(Files::isDirectory)
+                .filter(p -> !p.equals(docsRoot))
+                .map(module -> module.resolve(htmlFile))
+                .filter(Files::exists)
+                .map(this::toUrl)
+                .toList();
+    } catch (Exception e) {
+        return List.of();
+    }
+}
+
+List<String> findBySimpleName(Path docsRoot, String simpleName) {
+    var fileName = simpleName + ".html";
+    try (var stream = Files.walk(docsRoot)) {
+        return stream
+                .filter(Files::isRegularFile)
+                .filter(p -> p.getFileName().toString().equals(fileName))
+                .filter(this::isClassFile)
+                .map(this::toUrl)
+                .toList();
+    } catch (Exception e) {
+        return List.of();
+    }
+}
+
+boolean isClassFile(Path path) {
+    return !path.toString().contains("class-use");
+}
+
+String toUrl(Path path) {
+    return path.toUri().toString();
+}
+
+class ZCfg {
+
+    static Properties CACHE;
+
+    static void load(String appName) {
+        CACHE = loadProperties(appName);
+    }
+
+    static Properties loadProperties(String appName) {
+        var properties = new Properties();
+        var userHome = System.getProperty("user.home");
+        var globalConfig = Path.of(userHome, "." + appName, PROPERTIES_FILE);
+        if (Files.exists(globalConfig))
+            loadFromFile(globalConfig, properties);
+        var localConfig = Path.of(PROPERTIES_FILE);
+        if (Files.exists(localConfig))
+            loadFromFile(localConfig, properties);
+        properties.putAll(System.getProperties());
+        return properties;
+    }
+
+    static void loadFromFile(Path file, Properties properties) {
+        try (var reader = Files.newBufferedReader(file)) {
+            properties.load(reader);
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot load properties from: " + file, e);
+        }
+    }
+
+    static String string(String key) {
+        return CACHE.getProperty(key);
+    }
+
+    static String string(String key, String defaultValue) {
+        return CACHE.getProperty(key, defaultValue);
+    }
+}
