@@ -1,7 +1,7 @@
 #!/usr/bin/env -S java --source 25
 
 /**
- * zjdocfind - Find javadoc for a class by simple or fully qualified name.
+ * zjdocfind - Find javadoc for a type (class, interface, enum, record, annotation) by simple or fully qualified name.
  *
  * Configuration is loaded from (each overwrites the previous):
  *   1. $HOME/.zjdocfind/app.properties  (global)
@@ -31,8 +31,8 @@ String version = "2026-04-10.2";
 
 void main(String... args) {
     if (args.length == 0 || args[0].equals("-help")) {
-        IO.println("Usage: " + APP_NAME + " <className>");
-        IO.println("  Find javadoc for a class by simple or fully qualified name");
+        IO.println("Usage: " + APP_NAME + " <typeName>");
+        IO.println("  Find javadoc for a type (class, interface, enum, record, annotation)");
         IO.println("  Examples: " + APP_NAME + " String");
         IO.println("           " + APP_NAME + " java.lang.String");
         IO.println("  -help     Show this help");
@@ -52,17 +52,17 @@ void main(String... args) {
     ZCfg.load(APP_NAME);
     var docsRoot = Path.of(ZCfg.string(DOCS_ROOT_KEY, DOCS_ROOT_DEFAULT));
 
-    var className = args[0];
-    var results = isFullyQualified(className) ? findByQualifiedName(docsRoot, className) : findBySimpleName(docsRoot, className);
+    var typeName = args[0];
+    var results = isFullyQualified(typeName) ? findByQualifiedName(docsRoot, typeName) : findBySimpleName(docsRoot, typeName);
     if (results.isEmpty()) {
-        System.err.println("No javadoc found for: " + className);
+        System.err.println("No javadoc found for: " + typeName);
         System.exit(1);
     }
     results.forEach(IO::println);
 }
 
-boolean isFullyQualified(String className) {
-    return className.contains(".");
+boolean isFullyQualified(String typeName) {
+    return typeName.contains(".");
 }
 
 List<String> findByQualifiedName(Path docsRoot, String qualifiedName) {
@@ -86,7 +86,7 @@ List<String> findBySimpleName(Path docsRoot, String simpleName) {
         return stream
                 .filter(Files::isRegularFile)
                 .filter(p -> p.getFileName().toString().equals(fileName))
-                .filter(this::isClassFile)
+                .filter(this::isTypeDoc)
                 .map(this::toUrl)
                 .toList();
     } catch (Exception e) {
@@ -94,7 +94,7 @@ List<String> findBySimpleName(Path docsRoot, String simpleName) {
     }
 }
 
-boolean isClassFile(Path path) {
+boolean isTypeDoc(Path path) {
     return !path.toString().contains("class-use");
 }
 
