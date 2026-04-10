@@ -22,9 +22,6 @@
 
 import module java.desktop;
 
-import java.lang.invoke.MethodHandles;
-import java.nio.file.*;
-
 static final String APP_NAME = MethodHandles.lookup().lookupClass().getName();
 static final String PROPERTIES_FILE = "app.properties";
 static final String DOCS_ROOT_KEY = "docs.root";
