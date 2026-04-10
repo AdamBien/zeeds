@@ -19,6 +19,8 @@
  * Configuration based on https://github.com/AdamBien/zcfg
  */
 
+import module java.desktop;
+
 import java.lang.invoke.MethodHandles;
 import java.nio.file.*;
 
@@ -59,6 +61,15 @@ void main(String... args) {
         System.exit(1);
     }
     results.forEach(IO::println);
+    results.forEach(this::open);
+}
+
+void open(String url) {
+    try {
+        Desktop.getDesktop().browse(URI.create(url));
+    } catch (IOException e) {
+        System.err.println("Failed to open: " + url);
+    }
 }
 
 boolean isFullyQualified(String typeName) {
