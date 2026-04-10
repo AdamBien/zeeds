@@ -10,6 +10,7 @@
  *
  * Configurable properties:
  *   docs.root=~/work/devprogs/javadoc/docs/api
+ *   docs.url=https://docs.oracle.com/en/java/javase/25/docs/api
  *
  * Examples:
  *   zjdocfind String
@@ -28,6 +29,8 @@ static final String APP_NAME = MethodHandles.lookup().lookupClass().getName();
 static final String PROPERTIES_FILE = "app.properties";
 static final String DOCS_ROOT_KEY = "docs.root";
 static final String DOCS_ROOT_DEFAULT = System.getProperty("user.home") + "/work/devprogs/javadoc/docs/api";
+static final String DOCS_URL_KEY = "docs.url";
+static final String DOCS_URL_DEFAULT = "https://docs.oracle.com/en/java/javase/25/docs/api";
 
 String version = "2026-04-10.2";
 
@@ -53,6 +56,7 @@ void main(String... args) {
 
     ZCfg.load(APP_NAME);
     var docsRoot = Path.of(ZCfg.string(DOCS_ROOT_KEY, DOCS_ROOT_DEFAULT));
+    var docsUrl = ZCfg.string(DOCS_URL_KEY, DOCS_URL_DEFAULT);
 
     var typeName = args[0];
     var results = isFullyQualified(typeName) ? findByQualifiedName(docsRoot, typeName) : findBySimpleName(docsRoot, typeName);
@@ -60,15 +64,17 @@ void main(String... args) {
         System.err.println("No javadoc found for: " + typeName);
         System.exit(1);
     }
-    results.forEach(IO::println);
+    results.stream()
+            .map(path -> toWebUrl(docsRoot, docsUrl, path))
+            .forEach(IO::println);
     results.forEach(this::open);
 }
 
-void open(String url) {
+void open(Path path) {
     try {
-        Desktop.getDesktop().browse(URI.create(url));
+        Desktop.getDesktop().browse(path.toUri());
     } catch (IOException e) {
-        System.err.println("Failed to open: " + url);
+        System.err.println("Failed to open: " + path);
     }
 }
 
@@ -76,7 +82,7 @@ boolean isFullyQualified(String typeName) {
     return typeName.contains(".");
 }
 
-List<String> findByQualifiedName(Path docsRoot, String qualifiedName) {
+List<Path> findByQualifiedName(Path docsRoot, String qualifiedName) {
     var htmlFile = qualifiedName.replace('.', '/') + ".html";
     try (var stream = Files.walk(docsRoot, 1)) {
         return stream
@@ -84,21 +90,19 @@ List<String> findByQualifiedName(Path docsRoot, String qualifiedName) {
                 .filter(p -> !p.equals(docsRoot))
                 .map(module -> module.resolve(htmlFile))
                 .filter(Files::exists)
-                .map(this::toUrl)
                 .toList();
     } catch (Exception e) {
         return List.of();
     }
 }
 
-List<String> findBySimpleName(Path docsRoot, String simpleName) {
+List<Path> findBySimpleName(Path docsRoot, String simpleName) {
     var fileName = simpleName + ".html";
     try (var stream = Files.walk(docsRoot)) {
         return stream
                 .filter(Files::isRegularFile)
                 .filter(p -> p.getFileName().toString().equals(fileName))
                 .filter(this::isTypeDoc)
-                .map(this::toUrl)
                 .toList();
     } catch (Exception e) {
         return List.of();
@@ -109,8 +113,9 @@ boolean isTypeDoc(Path path) {
     return !path.toString().contains("class-use");
 }
 
-String toUrl(Path path) {
-    return path.toUri().toString();
+String toWebUrl(Path docsRoot, String docsUrl, Path path) {
+    var relative = docsRoot.relativize(path);
+    return docsUrl + "/" + relative;
 }
 
 class ZCfg {
