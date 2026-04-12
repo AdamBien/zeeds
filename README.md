@@ -20,4 +20,5 @@ Zero-dependency Java 25+ source files designed as starting points for your proje
 - [**zheader**](zheader) — Prepend a copyright / license header from the clipboard to all `.java` files recursively, skipping files that already contain it. Usage: `./zheader [dir] [-dry]`
 - [**zimginfo**](zimginfo) — Print image dimensions and file size. Usage: `./zimginfo <image-file>`
 - [**zlaunch**](zlaunch) — Load environment entries from properties files, then launch an application. Usage: `./zlaunch <command> [args...]`
+- [**zjdocfind**](zjdocfind) — Find and open javadoc for a type by simple or fully qualified name. Usage: `./zjdocfind String` or `./zjdocfind java.lang.String`
 - [**zzip**](zzip) — Zip a directory into a `.zip` file. Usage: `./zzip <directory>`
