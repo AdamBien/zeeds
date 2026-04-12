@@ -98,7 +98,7 @@ List<Path> findBySimpleName(Path docsRoot, String simpleName) {
     try (var stream = Files.walk(docsRoot)) {
         return stream
                 .filter(Files::isRegularFile)
-                .filter(p -> p.getFileName().toString().equals(fileName))
+                .filter(p -> p.getFileName().toString().equalsIgnoreCase(fileName))
                 .filter(this::isTypeDoc)
                 .toList();
     } catch (Exception e) {
