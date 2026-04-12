@@ -20,30 +20,32 @@
  * Configuration based on https://github.com/AdamBien/zcfg
  */
 
-import java.awt.Desktop;
+import module java.desktop;
 
-static final String APP_NAME = MethodHandles.lookup().lookupClass().getName();
-static final String PROPERTIES_FILE = "app.properties";
-static final String DOCS_ROOT_KEY = "docs.root";
-static final String DOCS_ROOT_DEFAULT = System.getProperty("user.home") + "/work/devprogs/javadoc/docs/api";
-static final String DOCS_URL_KEY = "docs.url";
-static final String DOCS_URL_DEFAULT = "https://docs.oracle.com/en/java/javase/25/docs/api";
+final String APP_NAME = MethodHandles.lookup().lookupClass().getName();
+final String PROPERTIES_FILE = "app.properties";
+final String DOCS_ROOT_KEY = "docs.root";
+final String DOCS_ROOT_DEFAULT = System.getProperty("user.home") + "/work/devprogs/javadoc/docs/api";
+final String DOCS_URL_KEY = "docs.url";
+final String DOCS_URL_DEFAULT = "https://docs.oracle.com/en/java/javase/25/docs/api";
 
 String version = "2026-04-10.2";
 
 void main(String... args) {
     if (args.length == 0 || args[0].equals("-help")) {
-        IO.println("Usage: " + APP_NAME + " <typeName>");
-        IO.println("  Find javadoc for a type (class, interface, enum, record, annotation)");
-        IO.println("  Examples: " + APP_NAME + " String");
-        IO.println("           " + APP_NAME + " java.lang.String");
-        IO.println("  -help     Show this help");
-        IO.println("  -version  Show version");
-        IO.println("");
-        IO.println("Config sources (each overwrites previous):");
-        IO.println("  $HOME/." + APP_NAME + "/" + PROPERTIES_FILE);
-        IO.println("  ./" + PROPERTIES_FILE);
-        IO.println("  -D flags (e.g., -D" + DOCS_ROOT_KEY + "=/path/to/api)");
+        IO.println("""
+                Usage: %s <typeName>
+                  Find javadoc for a type (class, interface, enum, record, annotation)
+                  Examples: %1$s String
+                           %1$s java.lang.String
+                  -help     Show this help
+                  -version  Show version
+
+                Config sources (each overwrites previous):
+                  $HOME/.%1$s/%s
+                  ./%2$s
+                  -D flags (e.g., -D%s=/path/to/api)\
+                """.formatted(APP_NAME, PROPERTIES_FILE, DOCS_ROOT_KEY));
         return;
     }
     if (args[0].equals("-version")) {
