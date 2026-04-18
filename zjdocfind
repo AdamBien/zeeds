@@ -20,14 +20,14 @@
  * Configuration based on https://github.com/AdamBien/zcfg
  */
 
-import module java.desktop;
+import java.awt.Desktop;
 
-final String APP_NAME = MethodHandles.lookup().lookupClass().getName();
-final String PROPERTIES_FILE = "app.properties";
-final String DOCS_ROOT_KEY = "docs.root";
-final String DOCS_ROOT_DEFAULT = System.getProperty("user.home") + "/work/devprogs/javadoc/docs/api";
-final String DOCS_URL_KEY = "docs.url";
-final String DOCS_URL_DEFAULT = "https://docs.oracle.com/en/java/javase/25/docs/api";
+static String APP_NAME = MethodHandles.lookup().lookupClass().getName();
+static String PROPERTIES_FILE = "app.properties";
+static String DOCS_ROOT_KEY = "docs.root";
+static String DOCS_ROOT_DEFAULT = System.getProperty("user.home") + "/work/devprogs/javadoc/docs/api";
+static String DOCS_URL_KEY = "docs.url";
+static  String DOCS_URL_DEFAULT = "https://docs.oracle.com/en/java/javase/25/docs/api";
 
 String version = "2026-04-10.2";
 
