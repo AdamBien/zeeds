@@ -66,7 +66,7 @@ enum Log {
     }
 }
 
-String version = "2026-02-26.2";
+String version = "2026-04-18.1";
 
 void main(String... args) {
     Log.info("zcbs %s%n".formatted(version));
@@ -85,9 +85,15 @@ void main(String... args) {
     var path = Path.of(filename);
 
     try {
-        Files.writeString(path, content);
-        Log.dimmed(content);
-        Log.success("Clipboard saved to: " + path.toAbsolutePath());
+        if (Files.exists(path)) {
+            Files.writeString(path, content, java.nio.file.StandardOpenOption.APPEND);
+            Log.dimmed(content);
+            Log.success("Clipboard appended to: " + path.toAbsolutePath());
+        } else {
+            Files.writeString(path, content);
+            Log.dimmed(content);
+            Log.success("Clipboard saved to: " + path.toAbsolutePath());
+        }
     } catch (Exception e) {
         Log.stop("Failed to write file: " + e.getMessage());
     }
