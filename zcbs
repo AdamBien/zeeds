@@ -86,7 +86,7 @@ void main(String... args) {
 
     try {
         if (Files.exists(path)) {
-            var appendedContent = "%n---%ns".formatted(content);
+            var appendedContent = "%n---%n%s".formatted(content);
             Files.writeString(path, appendedContent, java.nio.file.StandardOpenOption.APPEND);
             Log.dimmed(appendedContent);
             Log.success("Clipboard appended to: " + path.toAbsolutePath());
