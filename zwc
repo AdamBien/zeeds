@@ -1,0 +1,33 @@
+#!/usr/bin/env -S java --source 25
+
+import module java.base;
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-04-22.1";
+
+long countWord(String content, String word) {
+    return new Scanner(content)
+            .tokens()
+            .filter(w -> w.equalsIgnoreCase(word))
+            .count();
+}
+
+void main(String... args) throws Exception {
+    if (args.length == 0 || args[0].equals("-help")) {
+        IO.println("""
+                Usage: %s <file> <word> [options]
+                  -help     Show this help
+                  -version  Show version
+                """.formatted(name));
+        return;
+    }
+    if (args[0].equals("-version")) {
+        IO.println(name + " " + version);
+        return;
+    }
+    if (args.length < 2) {
+        System.err.println("Error: both <file> and <word> are required");
+        System.exit(1);
+    }
+    IO.println(countWord(Files.readString(Path.of(args[0])), args[1]));
+}
