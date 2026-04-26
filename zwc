@@ -29,5 +29,8 @@ void main(String... args) throws Exception {
         System.err.println("Error: both <file> and <word> are required");
         System.exit(1);
     }
-    IO.println(countWord(Files.readString(Path.of(args[0])), args[1]));
+    var fileContent = Files.readString(Path.of(args[0]));
+    var word = args[1];
+    var count = countWord(fileContent, word);
+    IO.println(count);
 }
