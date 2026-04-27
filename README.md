@@ -23,3 +23,4 @@ Zero-dependency Java 25+ source files designed as starting points for your proje
 - [**zlaunch**](zlaunch) — Load environment entries from properties files, then launch an application. Usage: `./zlaunch <command> [args...]`
 - [**zjdocfind**](zjdocfind) — Find and open javadoc for a type by simple or fully qualified name. Usage: `./zjdocfind String` or `./zjdocfind java.lang.String`
 - [**zzip**](zzip) — Zip a directory into a `.zip` file. Usage: `./zzip <directory>`
+- [**zgitr**](zgitr) — List git remotes (fetch and push) from the current repository's `.git/config`. Usage: `./zgitr`
