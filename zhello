@@ -1,0 +1,5 @@
+#!/usr/bin/env -S java --source 25
+
+void main() {
+    IO.println("hello, world");
+}
