@@ -1,0 +1,68 @@
+#!/usr/bin/env -S java --source 25
+
+import java.nio.file.*;
+
+String version = "2026-03-12.1";
+
+record Remote(String name, String url) {
+    String format(String type) {
+        return name + "\t" + url + " (" + type + ")";
+    }
+}
+
+List<Remote> parseRemotes(Path gitConfig) throws Exception {
+    var remotes = new ArrayList<Remote>();
+    String currentRemote = null;
+    String currentUrl = null;
+    for (var line : Files.readAllLines(gitConfig)) {
+        var trimmed = line.trim();
+        if (trimmed.startsWith("[remote \"")) {
+            currentRemote = trimmed.substring(9, trimmed.length() - 2);
+            currentUrl = null;
+        } else if (trimmed.startsWith("[")) {
+            currentRemote = null;
+        } else if (currentRemote != null && trimmed.startsWith("url = ")) {
+            currentUrl = trimmed.substring(6);
+            remotes.add(new Remote(currentRemote, currentUrl));
+        }
+    }
+    return remotes;
+}
+
+Path resolveGitConfig() {
+    var dir = Path.of(".").toAbsolutePath().normalize();
+    while (dir != null) {
+        var config = dir.resolve(".git/config");
+        if (Files.exists(config)) return config;
+        dir = dir.getParent();
+    }
+    return null;
+}
+
+void main(String... args) {
+    if (args.length > 0 && args[0].equals("-version")) {
+        IO.println("zremote " + version);
+        return;
+    }
+    var config = resolveGitConfig();
+    if (config == null) {
+        System.err.println("not a git repository (no .git/config found)");
+        System.exit(1);
+    }
+    try {
+        var remotes = parseRemotes(config);
+        if (remotes.isEmpty()) {
+            IO.println("no remotes configured");
+            return;
+        }
+        remotes.stream()
+            .mapMulti((Remote r, Consumer<String> c) -> {
+                c.accept(r.format("fetch"));
+                c.accept(r.format("push"));
+            })
+            .forEach(IO::println);
+    } catch (Exception e) {
+        System.err.println("error reading git config: " + e.getMessage());
+        System.exit(1);
+    }
+}
