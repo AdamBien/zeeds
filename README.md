@@ -8,6 +8,7 @@ Zero-dependency Java 25+ source files designed as starting points for your proje
 
 ## Zeeds
 
+- [**zhello**](zhello) — The simplest possible Java 25 script, ideal as a starting point. Usage: `./zhello`
 - [**zcpdir**](zcpdir) — Copy a directory recursively. Usage: `./zcpdir <source-directory> [target-directory]`
 - [**zcbs**](zcbs) — Save clipboard content to a file. Usage: `./zcbs <filename>`
 - [**zecho**](zecho) — Echo text with colored output. Usage: `./zecho <text>`
