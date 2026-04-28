@@ -1,0 +1,29 @@
+#!/usr/bin/env -S java --source 25
+
+void main(String... args) throws Exception {
+    var file = findVersionFile().orElse(Path.of("version.txt").toAbsolutePath());
+    var today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
+    var next = nextVersion(file, today);
+    Files.writeString(file, next);
+    IO.println(file);
+}
+
+Optional<Path> findVersionFile() {
+    var dir = Path.of("").toAbsolutePath();
+    while (dir != null) {
+        var candidate = dir.resolve("version.txt");
+        if (Files.exists(candidate)) return Optional.of(candidate);
+        dir = dir.getParent();
+    }
+    return Optional.empty();
+}
+
+String nextVersion(Path file, String today) throws IOException {
+    if (!Files.exists(file)) return today + ".01";
+    var current = Files.readString(file).trim();
+    var lastDot = current.lastIndexOf('.');
+    if (lastDot < 0) return today + ".01";
+    if (!current.substring(0, lastDot).equals(today)) return today + ".01";
+    var counter = Integer.parseInt(current.substring(lastDot + 1));
+    return "%s.%02d".formatted(today, counter + 1);
+}
