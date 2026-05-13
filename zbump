@@ -1,7 +1,18 @@
 #!/usr/bin/env -S java --source 25
 
 void main(String... args) throws Exception {
-    var file = findVersionFile().orElse(Path.of("version.txt").toAbsolutePath());
+    var existing = findVersionFile();
+    Path file;
+    if (existing.isPresent()) {
+        file = existing.get();
+    } else {
+        file = Path.of("version.txt").toAbsolutePath();
+        var answer = System.console().readLine("No version.txt found. Create %s? [y/N] ", file).trim().toLowerCase();
+        if (!answer.equals("y") && !answer.equals("yes")) {
+            IO.println("aborted");
+            return;
+        }
+    }
     var today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
     var next = nextVersion(file, today);
     Files.writeString(file, next);
