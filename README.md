@@ -24,3 +24,4 @@ Zero-dependency Java 25+ source files designed as starting points for your proje
 - [**zjdocfind**](zjdocfind) — Find and open javadoc for a type by simple or fully qualified name. Usage: `./zjdocfind String` or `./zjdocfind java.lang.String`
 - [**zzip**](zzip) — Zip a directory into a `.zip` file. Usage: `./zzip <directory>`
 - [**zgitr**](zgitr) — List git remotes (fetch and push) from the current repository's `.git/config`. Usage: `./zgitr`
+- [**zourl**](zourl) — Open a configured URI with the system's default application. Usage: `./zourl` or `./zourl -Duri=https://github.com`
