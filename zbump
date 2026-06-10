@@ -24,6 +24,8 @@ Optional<Path> findVersionFile() {
     while (dir != null) {
         var candidate = dir.resolve("version.txt");
         if (Files.exists(candidate)) return Optional.of(candidate);
+        var resourcesCandidate = dir.resolve("src/main/resources/version.txt");
+        if (Files.exists(resourcesCandidate)) return Optional.of(resourcesCandidate);
         dir = dir.getParent();
     }
     return Optional.empty();
