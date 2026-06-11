@@ -21,6 +21,7 @@
  */
 
 import java.awt.Desktop;
+import java.net.URI;
 
 static String APP_NAME = MethodHandles.lookup().lookupClass().getName();
 static String PROPERTIES_FILE = "app.properties";
@@ -29,7 +30,7 @@ static String DOCS_ROOT_DEFAULT = System.getProperty("user.home") + "/work/devpr
 static String DOCS_URL_KEY = "docs.url";
 static  String DOCS_URL_DEFAULT = "https://docs.oracle.com/en/java/javase/25/docs/api";
 
-String version = "2026-04-10.2";
+String version = "2026-06-12.1";
 
 void main(String... args) {
     if (args.length == 0 || args[0].equals("-help")) {
@@ -63,17 +64,19 @@ void main(String... args) {
         System.err.println("No javadoc found for: " + typeName);
         System.exit(1);
     }
-    results.stream()
+    var webUrls = results.stream()
             .map(path -> toWebUrl(docsRoot, docsUrl, path))
-            .forEach(IO::println);
-    results.forEach(this::open);
+            .toList();
+    webUrls.forEach(IO::println);
+    results.forEach(path -> open(path.toUri()));
+    webUrls.forEach(url -> open(URI.create(url)));
 }
 
-void open(Path path) {
+void open(URI uri) {
     try {
-        Desktop.getDesktop().browse(path.toUri());
+        Desktop.getDesktop().browse(uri);
     } catch (IOException e) {
-        System.err.println("Failed to open: " + path);
+        System.err.println("Failed to open: " + uri);
     }
 }
 
