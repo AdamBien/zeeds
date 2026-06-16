@@ -1,0 +1,206 @@
+#!/usr/bin/env -S java --source 25
+
+import module java.net.http;
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-06-16.2";
+
+String repo = "github/spec-kit";
+String defaultRef = "main";
+
+String commandsPrefix = "templates/commands/";
+String templatesPrefix = "templates/";
+String scriptsPrefix = "scripts/bash/";
+String skillPrefix = "speckit-";
+
+Map<String, String> argumentHints = Map.of(
+        "specify", "Describe the feature you want to specify",
+        "plan", "Optional guidance for the planning phase",
+        "tasks", "Optional task generation constraints",
+        "implement", "Optional implementation guidance or task filter",
+        "analyze", "Optional focus areas for analysis",
+        "clarify", "Optional areas to clarify in the spec",
+        "constitution", "Principles or values for the project constitution",
+        "checklist", "Domain or focus area for the checklist",
+        "taskstoissues", "Optional filter or label for GitHub issues");
+
+void main(String... args) throws Exception {
+    IO.println(name + " " + version);
+    if (args.length == 0 || args[0].equals("-help")) {
+        IO.println("""
+                Usage: %s init [path] [--here] [--force] [--ref REF]
+                       %s -version
+
+                  init            Bootstrap a spec-kit project for Claude Code
+                  path            Target directory (omit and pass --here for current dir)
+                  --here          Initialize in current directory
+                  --force         Overwrite existing files
+                  --ref REF       Git ref to fetch (default: %s, e.g. v0.10.2)
+                  -help           Show this help
+                  -version        Show version
+                """.formatted(name, name, defaultRef));
+        return;
+    }
+    if (args[0].equals("-version")) return;
+    if (!args[0].equals("init")) {
+        System.err.println("Unknown command: " + args[0]);
+        System.exit(2);
+    }
+
+    Path target = null;
+    boolean here = false;
+    boolean force = false;
+    String ref = defaultRef;
+    for (int i = 1; i < args.length; i++) {
+        switch (args[i]) {
+            case "--here" -> here = true;
+            case "--force" -> force = true;
+            case "--ref" -> ref = args[++i];
+            default -> {
+                if (args[i].startsWith("--")) {
+                    System.err.println("Unknown option: " + args[i]);
+                    System.exit(2);
+                }
+                target = Path.of(args[i]);
+            }
+        }
+    }
+    if (target == null && !here) {
+        System.err.println("Specify a target directory or pass --here");
+        System.exit(2);
+    }
+
+    Path root = here ? Path.of("").toAbsolutePath() : target.toAbsolutePath();
+    Files.createDirectories(root);
+    initialize(root, ref, force);
+}
+
+void initialize(Path root, String ref, boolean force) throws Exception {
+    IO.println("Fetching " + repo + "@" + ref + " ...");
+    Map<String, byte[]> archive = fetchArchive(ref);
+
+    Path templatesDir = root.resolve(".specify/templates");
+    Path scriptsDir = root.resolve(".specify/scripts/bash");
+    Path memoryDir = root.resolve(".specify/memory");
+    Path skillsDir = root.resolve(".claude/skills");
+    Files.createDirectories(templatesDir);
+    Files.createDirectories(scriptsDir);
+    Files.createDirectories(memoryDir);
+    Files.createDirectories(skillsDir);
+
+    int copied = 0, skills = 0, skipped = 0;
+    for (var e : archive.entrySet()) {
+        String path = e.getKey();
+        byte[] data = e.getValue();
+
+        if (path.startsWith(commandsPrefix) && path.endsWith(".md")) {
+            String stem = path.substring(commandsPrefix.length(), path.length() - 3);
+            Path skillDir = skillsDir.resolve(skillPrefix + stem);
+            Path skillFile = skillDir.resolve("SKILL.md");
+            if (!force && Files.exists(skillFile)) { skipped++; continue; }
+            Files.createDirectories(skillDir);
+            String rendered = renderSkill(stem, new String(data, StandardCharsets.UTF_8));
+            Files.writeString(skillFile, rendered);
+            IO.println("  skill  " + root.relativize(skillFile));
+            skills++;
+        } else if (path.startsWith(templatesPrefix) && !path.startsWith(commandsPrefix)
+                && (path.endsWith(".md") || path.endsWith(".json"))) {
+            String stem = path.substring(templatesPrefix.length());
+            Path out = templatesDir.resolve(stem);
+            if (!force && Files.exists(out)) { skipped++; continue; }
+            Files.createDirectories(out.getParent());
+            Files.write(out, data);
+            IO.println("  copy   " + root.relativize(out));
+            copied++;
+        } else if (path.startsWith(scriptsPrefix) && path.endsWith(".sh")) {
+            String stem = path.substring(scriptsPrefix.length());
+            Path out = scriptsDir.resolve(stem);
+            if (!force && Files.exists(out)) { skipped++; continue; }
+            Files.write(out, data);
+            out.toFile().setExecutable(true);
+            IO.println("  copy   " + root.relativize(out));
+            copied++;
+        }
+    }
+
+    IO.println("""
+
+            Installed %d skills and %d files (%d skipped) in:
+              %s
+
+            Open this directory with Claude Code and try /speckit-constitution.
+            Pass --force to overwrite existing files.
+            """.formatted(skills, copied, skipped, root));
+}
+
+Map<String, byte[]> fetchArchive(String ref) throws Exception {
+    String kind = ref.startsWith("v") ? "tags" : "heads";
+    String url = "https://codeload.github.com/" + repo + "/zip/refs/" + kind + "/" + ref;
+    var client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+    var req = HttpRequest.newBuilder(URI.create(url)).build();
+    var resp = client.send(req, HttpResponse.BodyHandlers.ofByteArray());
+    if (resp.statusCode() != 200) {
+        throw new IOException("Fetch failed (HTTP " + resp.statusCode() + "): " + url);
+    }
+    var files = new LinkedHashMap<String, byte[]>();
+    try (var zis = new ZipInputStream(new ByteArrayInputStream(resp.body()))) {
+        ZipEntry entry;
+        while ((entry = zis.getNextEntry()) != null) {
+            if (entry.isDirectory()) continue;
+            String entryName = entry.getName();
+            int slash = entryName.indexOf('/');
+            if (slash < 0) continue;
+            files.put(entryName.substring(slash + 1), zis.readAllBytes());
+        }
+    }
+    return files;
+}
+
+String renderSkill(String stem, String original) {
+    var parsed = stripFrontmatter(original);
+    String description = parsed.description() != null
+            ? parsed.description()
+            : "Spec-kit workflow command: " + stem;
+    String hint = argumentHints.getOrDefault(stem, "");
+    String hintLine = hint.isEmpty() ? "" : "argument-hint: \"" + hint.replace("\"", "\\\"") + "\"\n";
+    return """
+            ---
+            name: %s%s
+            description: %s
+            %suser-invocable: true
+            disable-model-invocation: false
+            ---
+
+            %s
+            """.formatted(skillPrefix, stem, yamlEscape(description), hintLine, parsed.body().strip());
+}
+
+record Parsed(String description, String body) {}
+
+Parsed stripFrontmatter(String content) {
+    if (!content.startsWith("---")) return new Parsed(null, content);
+    int end = content.indexOf("\n---", 3);
+    if (end < 0) return new Parsed(null, content);
+    String fm = content.substring(3, end);
+    String body = content.substring(end + 4).stripLeading();
+    String description = null;
+    for (var line : fm.split("\n")) {
+        var trimmed = line.stripLeading();
+        if (trimmed.startsWith("description:")) {
+            description = trimmed.substring("description:".length()).trim();
+            if (description.startsWith("\"") && description.endsWith("\"")
+                    || description.startsWith("'") && description.endsWith("'")) {
+                description = description.substring(1, description.length() - 1);
+            }
+            break;
+        }
+    }
+    return new Parsed(description, body);
+}
+
+String yamlEscape(String value) {
+    if (value.contains(":") || value.contains("#") || value.contains("\"")) {
+        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    }
+    return value;
+}
