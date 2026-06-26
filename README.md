@@ -25,3 +25,4 @@ Zero-dependency Java 25+ source files designed as starting points for your proje
 - [**zzip**](zzip) — Zip a directory into a `.zip` file. Usage: `./zzip <directory>`
 - [**zgitr**](zgitr) — List git remotes (fetch and push) from the current repository's `.git/config`. Usage: `./zgitr`
 - [**zourl**](zourl) — Open a configured URI with the system's default application. Usage: `./zourl` or `./zourl -Duri=https://github.com`
+- [**zbump**](zbump) — Bump `version.txt` using a `yyyy.MM.dd.NN` per-day sequence, searching the current directory upwards (and `src/main/resources`). Usage: `./zbump`
