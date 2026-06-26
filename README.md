@@ -6,6 +6,8 @@
 
 Zero-dependency Java 25+ source files designed as starting points for your projects. Run directly with `java filename.java` — no compilation step needed. Each zeed is self-contained, using only JDK APIs. Copy, customize, extend.
 
+Only Java 25+ is required, no external dependencies.
+
 ## Zeeds
 
 - [**zhello**](zhello) — The simplest possible Java 25 script, ideal as a starting point. Usage: `./zhello`
