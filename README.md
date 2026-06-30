@@ -29,3 +29,4 @@ Only Java 25+ is required, no external dependencies.
 - [**zourl**](zourl) — Open a configured URI with the system's default application. Usage: `./zourl` or `./zourl -Duri=https://github.com`
 - [**zbump**](zbump) — Bump `version.txt` using a `yyyy.MM.dd.NN` per-day sequence, searching the current directory upwards (and `src/main/resources`). Usage: `./zbump`
 - [**znotes**](znotes) — Append timestamped thoughts to a Markdown notes file (folder configurable via `zcfg`). Usage: `./znotes <thought>`, `./znotes -l` (list), or `./znotes -o` (open)
+- [**zf2cb**](zf2cb) — Load a file into the system clipboard. Usage: `./zf2cb <file>`

@@ -5,69 +5,38 @@ import module java.desktop;
 /**
  * zf2cb - Zero dependencies File to Clipboard
  *
- * Loads a file from the script's configuration folder into the system clipboard.
- *
- * Configuration is loaded from (each overwrites the previous):
- *   1. $HOME/.zf2cb/app.properties  (global)
- *   2. ./app.properties             (local, current directory)
- *   3. -D system properties         (CLI overrides)
- *
- * Property:
- *   files.folder=~/.zf2cb  (default)
+ * Loads the file passed as parameter into the system clipboard.
  *
  * Usage:
- *   zf2cb                  loads content.txt into clipboard
- *   zf2cb <filename>       loads specified file into clipboard
- *   zf2cb -l               list available files
- *   zf2cb -o               open files folder
+ *   zf2cb <file>       loads the specified file into clipboard
+ *   zf2cb -help        show this help
+ *   zf2cb -version     show version
  *
- * Configuration based on https://github.com/AdamBien/zcfg
  * Logging based on https://github.com/AdamBien/zcl
  */
 
-String version = "2026-03-24.1";
+String version = "2026-06-30.1";
 
 static final String APP_NAME = "zf2cb";
-static final String CONFIGURATION_NAME = MethodHandles
-                                .lookup()
-                                .lookupClass()
-                                .getName();
 
 void main(String... args) {
-    if (args.length > 0 && args[0].equals("-help")) {
-        IO.println("Usage: " + APP_NAME + " [options]");
-        IO.println("  -l          List available files");
-        IO.println("  -o          Open files folder");
+    if (args.length == 0 || args[0].equals("-help")) {
+        IO.println("Usage: " + APP_NAME + " <file>");
         IO.println("  -help       Show this help");
         IO.println("  -version    Show version");
-        IO.println("");
         return;
     }
 
-    var contentFile = "%s.txt".formatted(CONFIGURATION_NAME);
-    var homeFolder = System.getProperty("user.home");
-    var appFolder = Path.of(homeFolder,"."+APP_NAME);
-
-    if (args.length > 0 && args[0].equals("-version")) {
+    if (args[0].equals("-version")) {
         IO.println(APP_NAME + " " + version);
         return;
     }
 
-
-    if (args.length > 0 && args[0].equals("-l")) {
-        listFiles(appFolder);
-        return;
-    }
-    if (args.length > 0 && args[0].equals("-o")) {
-        openFolder(appFolder);
-        return;
-    }
-    loadToClipboard(appFolder, contentFile);
+    loadToClipboard(Path.of(args[0]));
 }
 
 
-void loadToClipboard(Path folder, String filename) {
-    var file = folder.resolve(filename);
+void loadToClipboard(Path file) {
     if (!Files.exists(file))
         Log.stop("File not found: " + file);
     if (!Files.isRegularFile(file))
@@ -82,42 +51,6 @@ void loadToClipboard(Path folder, String filename) {
         Log.info("Loaded to clipboard: " + file.getFileName() + " (" + content.length() + " chars)");
     } catch (IOException e) {
         Log.stop("Failed to read file: " + e.getMessage());
-    }
-}
-
-void listFiles(Path folder) {
-    if (!Files.exists(folder)) {
-        Log.info("No files yet in " + folder);
-        return;
-    }
-    try (var files = Files.list(folder)) {
-        var entries = files
-                .filter(Files::isRegularFile)
-                .sorted()
-                .toList();
-        if (entries.isEmpty()) {
-            Log.info("No files yet in " + folder);
-            return;
-        }
-        Log.info(APP_NAME + " " + version + " - " + folder);
-        entries.forEach(entry -> Log.info("  " + entry.getFileName()));
-    } catch (IOException e) {
-        Log.stop("Failed to list files: " + e.getMessage());
-    }
-}
-
-
-void openFolder(Path folder) {
-    if (!Files.exists(folder)) {
-        Log.info("No files yet in " + folder);
-        return;
-    }
-    try {
-        Desktop.getDesktop().open(folder.toFile());
-        Log.info(APP_NAME + " " + version);
-        Log.info("Opening: " + folder);
-    } catch (IOException e) {
-        Log.stop("Failed to open folder: " + e.getMessage());
     }
 }
 
@@ -141,7 +74,7 @@ enum Log {
     }
 
     String value;
-    static final String RESET = "\u001B[0m";
+    static final String RESET = "\033[0m";
 
     Log(Color color, PrintStream out) {
         this.value = color.code + "%s" + RESET;
