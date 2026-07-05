@@ -1,0 +1,31 @@
+#!/usr/bin/env -S java --source 25
+
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-07-05.1";
+
+void main(String... args) throws Exception {
+    IO.println(name + " " + version);
+    var clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+    var content = (String) clipboard.getData(DataFlavor.stringFlavor);
+    if (content == null || content.isBlank()) {
+        System.err.println(name + ": clipboard is empty");
+        System.exit(1);
+    }
+    // slugify: non-alphanumerics -> single hyphen, trim edge hyphens
+    var directoryName = content.strip()
+            .toLowerCase()
+            .replaceAll("[^a-z0-9]+", "-")
+            .replaceAll("^-+|-+$", "");
+    if (directoryName.isEmpty()) {
+        System.err.println(name + ": clipboard contains no usable characters");
+        System.exit(1);
+    }
+    var directory = Path.of(directoryName);
+    Files.createDirectories(directory);
+    IO.println("created: " + directory.toAbsolutePath());
+}
