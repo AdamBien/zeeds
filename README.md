@@ -30,3 +30,4 @@ Only Java 25+ is required, no external dependencies.
 - [**zbump**](zbump) — Bump `version.txt` using a `yyyy.MM.dd.NN` per-day sequence, searching the current directory upwards (and `src/main/resources`). Usage: `./zbump`
 - [**znotes**](znotes) — Append timestamped thoughts to a Markdown notes file (folder configurable via `zcfg`). Usage: `./znotes <thought>`, `./znotes -l` (list), or `./znotes -o` (open)
 - [**zf2cb**](zf2cb) — Load a file into the system clipboard. Usage: `./zf2cb <file>`
+- [**zcbxmlstrip**](zcbxmlstrip) — Strip XML/HTML markup from clipboard text, in place. Usage: `./zcbxmlstrip`
