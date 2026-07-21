@@ -30,8 +30,9 @@ record BusinessComponent(Path path, List<String> layers) {
         return !layers.isEmpty();
     }
 
-    String describe(Path root) {
-        return "%s [%s]".formatted(root.relativize(path), String.join(", ", layers));
+    String describe(Path root, boolean full) {
+        var display = full ? path.toAbsolutePath().normalize() : root.relativize(path);
+        return "%s [%s]".formatted(display, String.join(", ", layers));
     }
 }
 
@@ -68,17 +69,23 @@ List<BusinessComponent> findBusinessComponents(Path root) throws IOException {
 
 void main(String... args) throws Exception {
     IO.println(name + " " + version);
-    if (args.length > 0 && args[0].equals("-help")) {
+    var arguments = List.of(args);
+    if (arguments.contains("-help")) {
         IO.println("""
-                Usage: %s [directory]
+                Usage: %s [directory] [-full]
                   Lists all business components (BCs) — directories
                   containing a boundary, control, or entity layer.
                   Defaults to the current directory.
+                  -full  Show the complete path of each component
                   -help  Show this help
                 """.formatted(name));
         return;
     }
-    var root = Path.of(args.length > 0 ? args[0] : ".");
+    var full = arguments.contains("-full");
+    var root = Path.of(arguments.stream()
+            .filter(argument -> !argument.startsWith("-"))
+            .findFirst()
+            .orElse("."));
     if (!Files.isDirectory(root)) {
         System.err.println("Error: not a directory: " + root);
         System.exit(1);
@@ -88,5 +95,5 @@ void main(String... args) throws Exception {
         System.err.println("No business components found in " + root);
         return;
     }
-    components.forEach(bc -> Log.component(bc.describe(root)));
+    components.forEach(bc -> Log.component(bc.describe(root, full)));
 }
