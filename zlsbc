@@ -68,16 +68,17 @@ List<BusinessComponent> findBusinessComponents(Path root) throws IOException {
 
 void main(String... args) throws Exception {
     IO.println(name + " " + version);
-    if (args.length == 0 || args[0].equals("-help")) {
+    if (args.length > 0 && args[0].equals("-help")) {
         IO.println("""
-                Usage: %s <directory>
+                Usage: %s [directory]
                   Lists all business components (BCs) — directories
                   containing a boundary, control, or entity layer.
+                  Defaults to the current directory.
                   -help  Show this help
                 """.formatted(name));
         return;
     }
-    var root = Path.of(args[0]);
+    var root = Path.of(args.length > 0 ? args[0] : ".");
     if (!Files.isDirectory(root)) {
         System.err.println("Error: not a directory: " + root);
         System.exit(1);
