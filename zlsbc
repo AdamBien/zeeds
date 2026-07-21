@@ -9,6 +9,26 @@ Set<String> LAYERS = Set.of("boundary", "control", "entity");
 
 record BusinessComponent(Path path, List<String> layers) {}
 
+enum Log {
+
+    COMPONENT("\033[38;2;42;161;152m");   // Solarized Cyan #2aa198
+
+    private final String value;
+    private static final String RESET = "\033[0m";
+
+    Log(String color) {
+        this.value = color + "%s" + RESET;
+    }
+
+    void out(String message) {
+        System.out.println(this.value.formatted(message));
+    }
+
+    public static void component(String message) {
+        Log.COMPONENT.out(message);
+    }
+}
+
 List<String> layersOf(Path directory) {
     try (var children = Files.list(directory)) {
         return children
@@ -34,18 +54,14 @@ List<BusinessComponent> findBusinessComponents(Path root) throws IOException {
 }
 
 void main(String... args) throws Exception {
+    IO.println(name + " " + version);
     if (args.length == 0 || args[0].equals("-help")) {
         IO.println("""
-                Usage: %s <directory> [options]
+                Usage: %s <directory>
                   Lists all business components (BCs) — directories
                   containing a boundary, control, or entity layer.
-                  -help     Show this help
-                  -version  Show version
+                  -help  Show this help
                 """.formatted(name));
-        return;
-    }
-    if (args[0].equals("-version")) {
-        IO.println(name + " " + version);
         return;
     }
     var root = Path.of(args[0]);
@@ -58,7 +74,7 @@ void main(String... args) throws Exception {
         System.err.println("No business components found in " + root);
         return;
     }
-    components.forEach(bc -> IO.println("%s [%s]".formatted(
+    components.forEach(bc -> Log.component("%s [%s]".formatted(
             root.relativize(bc.path()),
             String.join(", ", bc.layers()))));
 }
