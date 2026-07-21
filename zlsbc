@@ -3,7 +3,7 @@
 import module java.base;
 
 String name = MethodHandles.lookup().lookupClass().getName();
-String version = "2026-07-20.1";
+String version = "2026-07-21.2";
 
 record BusinessComponent(Path path, List<String> layers) {
 
@@ -30,8 +30,8 @@ record BusinessComponent(Path path, List<String> layers) {
         return !layers.isEmpty();
     }
 
-    String describe(Path root, boolean full) {
-        var display = full ? path.toAbsolutePath().normalize() : root.relativize(path);
+    String describe(boolean full) {
+        var display = full ? path.toAbsolutePath().normalize() : path.getFileName();
         return "%s [%s]".formatted(display, String.join(", ", layers));
     }
 }
