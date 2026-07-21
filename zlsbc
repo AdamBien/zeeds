@@ -1,0 +1,64 @@
+#!/usr/bin/env -S java --source 25
+
+import module java.base;
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-07-20.1";
+
+Set<String> LAYERS = Set.of("boundary", "control", "entity");
+
+record BusinessComponent(Path path, List<String> layers) {}
+
+List<String> layersOf(Path directory) {
+    try (var children = Files.list(directory)) {
+        return children
+                .filter(Files::isDirectory)
+                .map(child -> child.getFileName().toString())
+                .filter(LAYERS::contains)
+                .sorted()
+                .toList();
+    } catch (IOException notReadable) {
+        return List.of();
+    }
+}
+
+List<BusinessComponent> findBusinessComponents(Path root) throws IOException {
+    try (var tree = Files.walk(root)) {
+        return tree
+                .filter(Files::isDirectory)
+                .map(directory -> new BusinessComponent(directory, layersOf(directory)))
+                .filter(bc -> !bc.layers().isEmpty())
+                .sorted(Comparator.comparing(bc -> bc.path().toString()))
+                .toList();
+    }
+}
+
+void main(String... args) throws Exception {
+    if (args.length == 0 || args[0].equals("-help")) {
+        IO.println("""
+                Usage: %s <directory> [options]
+                  Lists all business components (BCs) — directories
+                  containing a boundary, control, or entity layer.
+                  -help     Show this help
+                  -version  Show version
+                """.formatted(name));
+        return;
+    }
+    if (args[0].equals("-version")) {
+        IO.println(name + " " + version);
+        return;
+    }
+    var root = Path.of(args[0]);
+    if (!Files.isDirectory(root)) {
+        System.err.println("Error: not a directory: " + root);
+        System.exit(1);
+    }
+    var components = findBusinessComponents(root);
+    if (components.isEmpty()) {
+        System.err.println("No business components found in " + root);
+        return;
+    }
+    components.forEach(bc -> IO.println("%s [%s]".formatted(
+            root.relativize(bc.path()),
+            String.join(", ", bc.layers()))));
+}
