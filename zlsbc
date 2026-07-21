@@ -5,9 +5,35 @@ import module java.base;
 String name = MethodHandles.lookup().lookupClass().getName();
 String version = "2026-07-20.1";
 
-Set<String> LAYERS = Set.of("boundary", "control", "entity");
+record BusinessComponent(Path path, List<String> layers) {
 
-record BusinessComponent(Path path, List<String> layers) {}
+    static final Set<String> LAYERS = Set.of("boundary", "control", "entity");
+
+    static BusinessComponent of(Path path) {
+        try (var children = Files.list(path)) {
+            return new BusinessComponent(path, layersOf(children));
+        } catch (IOException notReadable) {
+            return new BusinessComponent(path, List.of());
+        }
+    }
+
+    static List<String> layersOf(Stream<Path> children) {
+        return children
+                .filter(Files::isDirectory)
+                .map(child -> child.getFileName().toString())
+                .filter(LAYERS::contains)
+                .sorted()
+                .toList();
+    }
+
+    boolean isComponent() {
+        return !layers.isEmpty();
+    }
+
+    String describe(Path root) {
+        return "%s [%s]".formatted(root.relativize(path), String.join(", ", layers));
+    }
+}
 
 enum Log {
 
@@ -29,26 +55,13 @@ enum Log {
     }
 }
 
-List<String> layersOf(Path directory) {
-    try (var children = Files.list(directory)) {
-        return children
-                .filter(Files::isDirectory)
-                .map(child -> child.getFileName().toString())
-                .filter(LAYERS::contains)
-                .sorted()
-                .toList();
-    } catch (IOException notReadable) {
-        return List.of();
-    }
-}
-
 List<BusinessComponent> findBusinessComponents(Path root) throws IOException {
     try (var tree = Files.walk(root)) {
         return tree
                 .filter(Files::isDirectory)
-                .map(directory -> new BusinessComponent(directory, layersOf(directory)))
-                .filter(bc -> !bc.layers().isEmpty())
-                .sorted(Comparator.comparing(bc -> bc.path().toString()))
+                .map(BusinessComponent::of)
+                .filter(BusinessComponent::isComponent)
+                .sorted(Comparator.comparing(BusinessComponent::path))
                 .toList();
     }
 }
@@ -74,7 +87,5 @@ void main(String... args) throws Exception {
         System.err.println("No business components found in " + root);
         return;
     }
-    components.forEach(bc -> Log.component("%s [%s]".formatted(
-            root.relativize(bc.path()),
-            String.join(", ", bc.layers()))));
+    components.forEach(bc -> Log.component(bc.describe(root)));
 }
