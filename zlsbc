@@ -30,8 +30,8 @@ record BusinessComponent(Path path, List<String> layers) {
         return !layers.isEmpty();
     }
 
-    String describe(boolean full) {
-        var display = full ? path.toAbsolutePath().normalize() : path.getFileName();
+    String describe(Path root, boolean full) {
+        var display = full ? root.relativize(path) : path.getFileName();
         return "%s [%s]".formatted(display, String.join(", ", layers));
     }
 }
@@ -95,5 +95,5 @@ void main(String... args) throws Exception {
         System.err.println("No business components found in " + root);
         return;
     }
-    components.forEach(bc -> Log.component(bc.describe(full)));
+    components.forEach(bc -> Log.component(bc.describe(root, full)));
 }

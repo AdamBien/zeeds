@@ -31,4 +31,4 @@ Only Java 25+ is required, no external dependencies.
 - [**znotes**](znotes) — Append timestamped thoughts to a Markdown notes file (folder configurable via `zcfg`). Usage: `./znotes <thought>`, `./znotes -l` (list), or `./znotes -o` (open)
 - [**zf2cb**](zf2cb) — Load a file into the system clipboard. Usage: `./zf2cb <file>`
 - [**zcbxmlstrip**](zcbxmlstrip) — Strip XML/HTML markup from clipboard text, in place. Usage: `./zcbxmlstrip`
-- [**zlsbc**](zlsbc) — List all [business components (BCs)](https://bce.design) — directories containing a `boundary`, `control`, or `entity` layer — with colored output. Usage: `./zlsbc <directory>`
+- [**zlsbc**](zlsbc) — List all [business components (BCs)](https://bce.design) — directories containing a `boundary`, `control`, or `entity` layer — with colored output. Prints the component name by default, or the path relative to the given directory with `-full`. Usage: `./zlsbc [directory]` (defaults to the current directory) or `./zlsbc [directory] -full`
