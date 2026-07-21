@@ -95,5 +95,5 @@ void main(String... args) throws Exception {
         System.err.println("No business components found in " + root);
         return;
     }
-    components.forEach(bc -> Log.component(bc.describe(root, full)));
+    components.forEach(bc -> Log.component(bc.describe(full)));
 }
