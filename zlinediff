@@ -1,0 +1,102 @@
+#!/usr/bin/env -S java --source 25
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-08-01.1";
+
+enum Log {
+    ERROR("\033[38;5;196m", System.err),
+    INFO("\033[38;5;46m", System.out),
+    USER("\033[38;5;51m", System.out);
+
+    static final String RESET = "\u001B[0m";
+    String code;
+    PrintStream out;
+
+    Log(String code, PrintStream out) {
+        this.code = code;
+        this.out = out;
+    }
+
+    String paint(String message) { return this.code + message + RESET; }
+    void out(String message) { this.out.println(paint(message)); }
+    static void stop(String message) { ERROR.out(message); System.exit(1); }
+}
+
+record Difference(int lineNumber, String left, String right) {
+    static final String MISSING = "<missing>";
+
+    String render() {
+        return """
+            %s
+            %s
+            %s""".formatted(
+                Log.USER.paint("line %d:".formatted(lineNumber)),
+                Log.ERROR.paint("  < " + show(left)),
+                Log.INFO.paint("  > " + show(right)));
+    }
+
+    boolean differs() { return !Objects.equals(left, right); }
+    static String show(String line) { return Objects.requireNonNullElse(line, MISSING); }
+}
+
+List<Difference> compare(List<String> left, List<String> right) {
+    return IntStream.range(0, Math.max(left.size(), right.size()))
+        .mapToObj(index -> new Difference(index + 1, lineAt(left, index), lineAt(right, index)))
+        .filter(Difference::differs)
+        .toList();
+}
+
+String lineAt(List<String> lines, int index) {
+    return index < lines.size() ? lines.get(index) : null;
+}
+
+List<String> readLines(Path file) throws IOException {
+    return Files.readAllLines(file, StandardCharsets.ISO_8859_1);
+}
+
+void printUsage() {
+    Log.USER.out("""
+        Usage: %s <left> <right>
+
+        Compares two text files line by line and lists differing lines.
+
+        Options:
+          -help     Show this help
+          -version  Show version
+
+        Exit codes:
+          0  files are identical
+          1  files differ or an error occurred
+
+        Example:
+          %s expected.txt actual.txt""".formatted(name, name));
+}
+
+
+void main(String... args) throws IOException {
+    IO.println(name + " " + version);
+    if (args.length == 0 || args[0].equals("-help")) {
+        printUsage();
+        return;
+    }
+    if (args[0].equals("-version")) return;
+    if (args.length != 2) Log.stop("Expected two files, got %d argument(s)".formatted(args.length));
+
+    var left = Path.of(args[0]);
+    var right = Path.of(args[1]);
+    if (!Files.isRegularFile(left)) Log.stop("Not a readable file: " + left);
+    if (!Files.isRegularFile(right)) Log.stop("Not a readable file: " + right);
+
+    var differences = compare(readLines(left), readLines(right));
+    if (differences.isEmpty()) {
+        Log.INFO.out("Files are identical");
+        return;
+    }
+
+    IO.println(differences.stream()
+        .map(Difference::render)
+        .collect(Collectors.joining("\n")));
+    Log.ERROR.out("%d differing line(s)".formatted(differences.size()));
+    System.exit(1);
+}
+
