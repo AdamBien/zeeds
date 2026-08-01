@@ -32,3 +32,4 @@ Only Java 25+ is required, no external dependencies.
 - [**zf2cb**](zf2cb) — Load a file into the system clipboard. Usage: `./zf2cb <file>`
 - [**zcbxmlstrip**](zcbxmlstrip) — Strip XML/HTML markup from clipboard text, in place. Usage: `./zcbxmlstrip`
 - [**zlsbc**](zlsbc) — List all [business components (BCs)](https://bce.design) — directories containing a `boundary`, `control`, or `entity` layer — with colored output. Prints the component name by default, or the path relative to the given directory with `-full`. Usage: `./zlsbc [directory]` (defaults to the current directory) or `./zlsbc [directory] -full`
+- [**zlinediff**](zlinediff) — Compare two text files line by line and list differing lines with colored output; exits with `1` if the files differ. Usage: `./zlinediff <left> <right>`
