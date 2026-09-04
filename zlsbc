@@ -56,10 +56,16 @@ enum Log {
     }
 }
 
+boolean insideTestFolder(Path relative) {
+    return StreamSupport.stream(relative.spliterator(), false)
+            .anyMatch(segment -> segment.toString().toLowerCase().contains("test"));
+}
+
 List<BusinessComponent> findBusinessComponents(Path root) throws IOException {
     try (var tree = Files.walk(root)) {
         return tree
                 .filter(Files::isDirectory)
+                .filter(path -> !insideTestFolder(root.relativize(path)))
                 .map(BusinessComponent::of)
                 .filter(BusinessComponent::isComponent)
                 .sorted(Comparator.comparing(BusinessComponent::path))
