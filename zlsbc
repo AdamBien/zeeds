@@ -3,7 +3,7 @@
 import module java.base;
 
 String name = MethodHandles.lookup().lookupClass().getName();
-String version = "2026-07-21.2";
+String version = "2026-09-04.2";
 
 record BusinessComponent(Path path, List<String> layers) {
 
@@ -76,6 +76,7 @@ void main(String... args) throws Exception {
                   Lists all business components (BCs) — directories
                   containing a boundary, control, or entity layer.
                   Defaults to the current directory.
+                  Folders containing "test" are ignored.
                   -full  Show the complete path of each component
                   -help  Show this help
                 """.formatted(name));
@@ -95,5 +96,8 @@ void main(String... args) throws Exception {
         System.err.println("No business components found in " + root);
         return;
     }
-    components.forEach(bc -> Log.component(bc.describe(root, full)));
+    components.stream()
+            .map(bc -> bc.describe(root, full))
+            .distinct()
+            .forEach(Log::component);
 }
