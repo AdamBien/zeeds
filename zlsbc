@@ -3,63 +3,7 @@
 import module java.base;
 
 String name = MethodHandles.lookup().lookupClass().getName();
-String version = "2026-09-11.2";
-
-record Layer(String name, long classes) {
-
-    static final Set<String> NAMES = Set.of("boundary", "control", "entity");
-
-    static Layer of(Path path) {
-        return new Layer(path.getFileName().toString(), countClasses(path));
-    }
-
-    static long countClasses(Path layer) {
-        try (var children = Files.list(layer)) {
-            return children
-                    .filter(Files::isRegularFile)
-                    .filter(file -> file.getFileName().toString().endsWith(".java"))
-                    .count();
-        } catch (IOException notReadable) {
-            return 0;
-        }
-    }
-
-    String describe() {
-        return "%s (%d)".formatted(name, classes);
-    }
-}
-
-record BusinessComponent(Path path, List<Layer> layers) {
-
-    static BusinessComponent of(Path path) {
-        try (var children = Files.list(path)) {
-            return new BusinessComponent(path, layersOf(children));
-        } catch (IOException notReadable) {
-            return new BusinessComponent(path, List.of());
-        }
-    }
-
-    static List<Layer> layersOf(Stream<Path> children) {
-        return children
-                .filter(Files::isDirectory)
-                .filter(child -> Layer.NAMES.contains(child.getFileName().toString()))
-                .map(Layer::of)
-                .sorted(Comparator.comparing(Layer::name))
-                .toList();
-    }
-
-    boolean isComponent() {
-        return !layers.isEmpty();
-    }
-
-    String describe(Path root, boolean full) {
-        var display = full ? root.relativize(path) : path.getFileName();
-        var described = layers.stream()
-                .map(Layer::describe)
-                .collect(Collectors.joining(", "));
-        return "%s [%s]".formatted(display, described);
-    }
-}
+String version = "2026-09-11.3";
 
 enum Log {
 
@@ -81,20 +25,76 @@ enum Log {
     }
 }
 
-boolean insideTestFolder(Path relative) {
-    return StreamSupport.stream(relative.spliterator(), false)
-            .anyMatch(segment -> segment.toString().toLowerCase().contains("test"));
-}
-
 List<BusinessComponent> findBusinessComponents(Path root) throws IOException {
     try (var tree = Files.walk(root)) {
         return tree
                 .filter(Files::isDirectory)
                 .filter(path -> !insideTestFolder(root.relativize(path)))
-                .map(BusinessComponent::of)
+                .map(this::componentOf)
                 .filter(BusinessComponent::isComponent)
                 .sorted(Comparator.comparing(BusinessComponent::path))
                 .toList();
+    }
+}
+
+boolean insideTestFolder(Path relative) {
+    return StreamSupport.stream(relative.spliterator(), false)
+            .anyMatch(segment -> segment.toString().toLowerCase().contains("test"));
+}
+
+BusinessComponent componentOf(Path path) {
+    return new BusinessComponent(path, layersOf(path));
+}
+
+List<Layer> layersOf(Path component) {
+    try (var children = Files.list(component)) {
+        return children
+                .filter(Files::isDirectory)
+                .filter(child -> Layer.NAMES.contains(child.getFileName().toString()))
+                .map(this::layerOf)
+                .sorted(Comparator.comparing(Layer::name))
+                .toList();
+    } catch (IOException notReadable) {
+        return List.of();
+    }
+}
+
+Layer layerOf(Path path) {
+    return new Layer(path.getFileName().toString(), countClasses(path));
+}
+
+long countClasses(Path layer) {
+    try (var children = Files.list(layer)) {
+        return children
+                .filter(Files::isRegularFile)
+                .filter(file -> file.getFileName().toString().endsWith(".java"))
+                .count();
+    } catch (IOException notReadable) {
+        return 0;
+    }
+}
+
+record Layer(String name, long classes) {
+
+    static final Set<String> NAMES = Set.of("boundary", "control", "entity");
+
+    String describe() {
+        return "%s (%d)".formatted(name, classes);
+    }
+}
+
+record BusinessComponent(Path path, List<Layer> layers) {
+
+    boolean isComponent() {
+        return !layers.isEmpty();
+    }
+
+    String describe(Path root, boolean full) {
+        var display = full ? root.relativize(path) : path.getFileName();
+        var described = layers.stream()
+                .map(Layer::describe)
+                .collect(Collectors.joining(", "));
+        return "%s [%s]".formatted(display, described);
     }
 }
 
