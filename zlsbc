@@ -3,11 +3,33 @@
 import module java.base;
 
 String name = MethodHandles.lookup().lookupClass().getName();
-String version = "2026-09-04.2";
+String version = "2026-09-11.2";
 
-record BusinessComponent(Path path, List<String> layers) {
+record Layer(String name, long classes) {
 
-    static final Set<String> LAYERS = Set.of("boundary", "control", "entity");
+    static final Set<String> NAMES = Set.of("boundary", "control", "entity");
+
+    static Layer of(Path path) {
+        return new Layer(path.getFileName().toString(), countClasses(path));
+    }
+
+    static long countClasses(Path layer) {
+        try (var children = Files.list(layer)) {
+            return children
+                    .filter(Files::isRegularFile)
+                    .filter(file -> file.getFileName().toString().endsWith(".java"))
+                    .count();
+        } catch (IOException notReadable) {
+            return 0;
+        }
+    }
+
+    String describe() {
+        return "%s (%d)".formatted(name, classes);
+    }
+}
+
+record BusinessComponent(Path path, List<Layer> layers) {
 
     static BusinessComponent of(Path path) {
         try (var children = Files.list(path)) {
@@ -17,12 +39,12 @@ record BusinessComponent(Path path, List<String> layers) {
         }
     }
 
-    static List<String> layersOf(Stream<Path> children) {
+    static List<Layer> layersOf(Stream<Path> children) {
         return children
                 .filter(Files::isDirectory)
-                .map(child -> child.getFileName().toString())
-                .filter(LAYERS::contains)
-                .sorted()
+                .filter(child -> Layer.NAMES.contains(child.getFileName().toString()))
+                .map(Layer::of)
+                .sorted(Comparator.comparing(Layer::name))
                 .toList();
     }
 
@@ -32,7 +54,10 @@ record BusinessComponent(Path path, List<String> layers) {
 
     String describe(Path root, boolean full) {
         var display = full ? root.relativize(path) : path.getFileName();
-        return "%s [%s]".formatted(display, String.join(", ", layers));
+        var described = layers.stream()
+                .map(Layer::describe)
+                .collect(Collectors.joining(", "));
+        return "%s [%s]".formatted(display, described);
     }
 }
 
@@ -80,7 +105,8 @@ void main(String... args) throws Exception {
         IO.println("""
                 Usage: %s [directory] [-full]
                   Lists all business components (BCs) — directories
-                  containing a boundary, control, or entity layer.
+                  containing a boundary, control, or entity layer —
+                  with the number of Java classes in each layer.
                   Defaults to the current directory.
                   Folders containing "test" are ignored.
                   -full  Show the complete path of each component
