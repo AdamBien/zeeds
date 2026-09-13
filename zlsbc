@@ -5,7 +5,7 @@ import module java.base;
 interface Boundary {
 
     String NAME = MethodHandles.lookup().lookupClass().getEnclosingClass().getName();
-    String VERSION = "2026-09-11.7";
+    String VERSION = "2026-09-13.1";
 
     static void listBusinessComponents(List<String> arguments) throws IOException {
         IO.println(NAME + " " + VERSION);
@@ -122,7 +122,7 @@ interface Entity {
         static final Set<String> NAMES = Set.of("boundary", "control", "entity");
 
         String describe() {
-            return "%s (%d)".formatted(name, classes);
+            return "%s(%d)".formatted(name, classes);
         }
     }
 
