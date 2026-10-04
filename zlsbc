@@ -5,24 +5,30 @@ import module java.base;
 interface Boundary {
 
     String NAME = MethodHandles.lookup().lookupClass().getEnclosingClass().getName();
-    String VERSION = "2026-09-13.1";
+    String VERSION = "2026-10-04.1";
 
     static void listBusinessComponents(List<String> arguments) throws IOException {
         IO.println(NAME + " " + VERSION);
         if (arguments.contains("-help")) {
             IO.println("""
-                    Usage: %s [directory] [-full]
+                    Usage: %s [directory] [-full] [-bce|-be|-c|...]
                       Lists all business components (BCs) — directories
                       containing a boundary, control, or entity layer —
                       with the number of Java classes in each layer.
                       Defaults to the current directory.
                       Folders containing "test" are ignored.
                       -full  Show the complete path of each component
+                      -[bce] Show only components with exactly these layers,
+                             e.g. -bce all layers, -be boundary and entity only
                       -help  Show this help
                     """.formatted(NAME));
             return;
         }
         var full = arguments.contains("-full");
+        var pattern = arguments.stream()
+                .filter(argument -> argument.matches("-[bce]+"))
+                .findFirst()
+                .map(Entity.Layer::namesOf);
         var root = Path.of(arguments.stream()
                 .filter(argument -> !argument.startsWith("-"))
                 .findFirst()
@@ -37,6 +43,7 @@ interface Boundary {
             return;
         }
         components.stream()
+                .filter(bc -> pattern.isEmpty() || bc.hasExactly(pattern.get()))
                 .map(bc -> bc.describe(root, full))
                 .distinct()
                 .forEach(Log::component);
@@ -121,6 +128,12 @@ interface Entity {
 
         static final Set<String> NAMES = Set.of("boundary", "control", "entity");
 
+        static Set<String> namesOf(String initials) {
+            return NAMES.stream()
+                    .filter(name -> initials.indexOf(name.charAt(0)) >= 0)
+                    .collect(Collectors.toSet());
+        }
+
         String describe() {
             return "%s(%d)".formatted(name, classes);
         }
@@ -130,6 +143,13 @@ interface Entity {
 
         boolean isComponent() {
             return !layers.isEmpty();
+        }
+
+        boolean hasExactly(Set<String> names) {
+            return layers.stream()
+                    .map(Layer::name)
+                    .collect(Collectors.toSet())
+                    .equals(names);
         }
 
         String describe(Path root, boolean full) {
