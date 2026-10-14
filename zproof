@@ -1,0 +1,110 @@
+#!/usr/bin/env -S java --source 25
+
+/**
+ * zproof - proofreads the clipboard text with the on-device Apple Foundation Model (fm CLI),
+ *          prints the corrected text to stdout and writes it back to the clipboard.
+ *          Diagnostics go to stderr.
+ *
+ * Usage: zproof
+ */
+
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.io.PrintStream;
+import java.lang.invoke.MethodHandles;
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-10-14.2";
+
+String instructions = """
+        You are a meticulous proofreader. Fix spelling, grammar, punctuation and typos.
+        Keep the original language, meaning, tone, wording and formatting (line breaks, Markdown, code).
+        Do not rephrase, summarize or add anything.
+        Respond with the corrected text only, without comments, explanations or quotes.
+        """;
+
+enum Log {
+
+    ERROR(Color.RED, System.err),
+    SYSTEM(Color.BLUE, System.err);
+
+    private PrintStream out;
+
+    enum Color {
+        RED("\033[38;2;220;50;47m"),          // Solarized Red #dc322f
+        BLUE("\033[38;2;38;139;210m");        // Solarized Blue #268bd2
+
+        String code;
+
+        Color(String code) {
+            this.code = code;
+        }
+    }
+
+    private final String value;
+    private final static String RESET = "\u001B[0m";
+
+    private Log(Color color, PrintStream out) {
+        this.value = (color.code + "%s" + RESET);
+        this.out = out;
+    }
+
+    void out(String message) {
+        this.out.println(this.value.formatted(message));
+    }
+
+    public static void error(String message) {
+        Log.ERROR.out(message);
+    }
+
+    public static void system(String message) {
+        Log.SYSTEM.out(message);
+    }
+
+    public static void stop(String message) {
+        error(message);
+        System.exit(1);
+    }
+}
+
+String readClipboard() throws Exception {
+    var clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+    if (!clipboard.isDataFlavorAvailable(DataFlavor.stringFlavor)) {
+        Log.stop("Clipboard contains no text");
+    }
+    var content = (String) clipboard.getData(DataFlavor.stringFlavor);
+    if (content.isBlank()) {
+        Log.stop("Clipboard contains no text");
+    }
+    return content;
+}
+
+void writeClipboard(String content) {
+    var selection = new StringSelection(content);
+    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+}
+
+String proofread(String text) throws Exception {
+    var fm = new ProcessBuilder("fm", "respond",
+            "--no-stream",
+            "--guardrails", "permissive-content-transformations",
+            "--instructions", instructions,
+            "--text", text,
+            "Proofread the text above.")
+            .redirectError(ProcessBuilder.Redirect.INHERIT)
+            .start();
+    var corrected = new String(fm.getInputStream().readAllBytes()).strip();
+    if (fm.waitFor() != 0 || corrected.isBlank()) {
+        Log.stop("Proofreading failed");
+    }
+    return corrected;
+}
+
+void main(String... args) throws Exception {
+    Log.system(name + " " + version);
+    var corrected = proofread(readClipboard());
+    IO.println(corrected);
+    writeClipboard(corrected);
+    Log.system("Corrected text copied to clipboard");
+}
