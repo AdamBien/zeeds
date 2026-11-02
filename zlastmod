@@ -9,7 +9,7 @@ import java.util.*;
 import java.util.stream.*;
 
 String name = MethodHandles.lookup().lookupClass().getName();
-String version = "2026-11-02.2";
+String version = "2026-11-02.3";
 
 enum Log {
     ERROR(Color.BRIGHT_RED, System.err),
@@ -46,6 +46,7 @@ enum Log {
 }
 
 enum Arg {
+    COUNT("-count", "Number of files to show (default: 5)"),
     HELP("-help", "Show this help"),
     VERSION("-version", "Show version");
 
@@ -62,6 +63,12 @@ enum Arg {
             || value.startsWith(this.option + ":");
     }
 
+    String value(String arg) {
+        var prefix = this.option + ":";
+        if (!arg.startsWith(prefix)) Log.stop("Missing value for " + this.option + ", expected " + prefix + "VALUE");
+        return arg.substring(prefix.length());
+    }
+
     static Arg from(String value) {
         return Stream.of(values())
             .filter(a -> a.matches(value))
@@ -76,7 +83,7 @@ enum Arg {
     }
 }
 
-record Args(Path folder) {}
+record Args(Path folder, int count) {}
 
 void main(String... args) throws Exception {
     Log.info(name + " " + version);
@@ -84,19 +91,23 @@ void main(String... args) throws Exception {
     if (!Files.isDirectory(parsed.folder())) {
         Log.stop("Not a directory: " + parsed.folder());
     }
-    var newest = findLastModified(parsed.folder());
+    var newest = findLastModified(parsed.folder(), parsed.count());
     if (newest.isEmpty()) {
         Log.stop("No files found in " + parsed.folder());
     }
-    var file = newest.get();
-    var modified = Files.getLastModifiedTime(file).toInstant().atZone(ZoneId.systemDefault());
-    Log.user(modified.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "  " + file.normalize());
+    var formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    for (var file : newest) {
+        var modified = lastModified(file).toInstant().atZone(ZoneId.systemDefault());
+        Log.user(modified.format(formatter) + "  " + file.normalize());
+    }
 }
 
 Args parseArgs(String[] args) {
     var folders = new ArrayList<String>();
+    var count = 5;
     for (var arg : args) {
         switch (Arg.from(arg)) {
+            case COUNT -> count = parseCount(Arg.COUNT.value(arg));
             case HELP -> printUsage();
             case VERSION -> System.exit(0);
             case null -> {
@@ -108,15 +119,26 @@ Args parseArgs(String[] args) {
     if (folders.size() > 1) {
         Log.stop("Expected at most one folder, got: " + folders);
     }
-    return new Args(Path.of(folders.isEmpty() ? "." : folders.getFirst()));
+    return new Args(Path.of(folders.isEmpty() ? "." : folders.getFirst()), count);
+}
+
+int parseCount(String value) {
+    try {
+        var count = Integer.parseInt(value);
+        if (count < 1) Log.stop("Count must be at least 1, got: " + value);
+        return count;
+    } catch (NumberFormatException e) {
+        Log.stop("Count must be a number, got: " + value);
+        return 0;
+    }
 }
 
 void printUsage() {
     Log.user("""
-        Usage: %s [folder]
+        Usage: %s [folder] [-count:N]
 
-        Prints the most recently modified file in folder (default: current directory),
-        searching all subfolders.
+        Prints the most recently modified files in folder (default: current directory),
+        searching all subfolders. Newest first.
 
         Options:
         %s
@@ -124,10 +146,12 @@ void printUsage() {
     System.exit(0);
 }
 
-Optional<Path> findLastModified(Path folder) throws Exception {
+List<Path> findLastModified(Path folder, int count) throws Exception {
     try (var files = Files.walk(folder)) {
         return files.filter(Files::isRegularFile)
-                .max(Comparator.comparing(this::lastModified));
+                .sorted(Comparator.comparing(this::lastModified).reversed())
+                .limit(count)
+                .toList();
     }
 }
 
