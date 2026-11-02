@@ -1,0 +1,56 @@
+#!/usr/bin/env -S java --source 25
+
+import java.nio.file.*;
+import java.nio.file.attribute.FileTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.Optional;
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-11-02.1";
+
+void main(String... args) throws Exception {
+    IO.println(name + " " + version);
+    if (args.length > 0 && args[0].equals("-help")) {
+        IO.println("""
+                Usage: %s [folder]
+                  Prints the most recently modified file in folder (default: current directory),
+                  searching all subfolders.
+                  -help     Show this help
+                  -version  Show version
+                """.formatted(name));
+        return;
+    }
+    if (args.length > 0 && args[0].equals("-version")) {
+        return;
+    }
+    var folder = Path.of(args.length > 0 ? args[0] : ".");
+    if (!Files.isDirectory(folder)) {
+        System.err.println(name + ": not a directory: " + folder);
+        System.exit(1);
+    }
+    var newest = findLastModified(folder);
+    if (newest.isEmpty()) {
+        System.err.println(name + ": no files found in " + folder);
+        System.exit(1);
+    }
+    var file = newest.get();
+    var modified = Files.getLastModifiedTime(file).toInstant().atZone(ZoneId.systemDefault());
+    IO.println(modified.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "  " + file.normalize());
+}
+
+Optional<Path> findLastModified(Path folder) throws Exception {
+    try (var files = Files.walk(folder)) {
+        return files.filter(Files::isRegularFile)
+                .max(Comparator.comparing(this::lastModified));
+    }
+}
+
+FileTime lastModified(Path file) {
+    try {
+        return Files.getLastModifiedTime(file);
+    } catch (Exception e) {
+        return FileTime.fromMillis(0);
+    }
+}
