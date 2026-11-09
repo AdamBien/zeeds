@@ -10,11 +10,13 @@
  *
  * Configurable properties:
  *   skip=.git,.DS_Store   comma-separated glob patterns; matching files and folders are ignored
+ *   count=5               number of files to show; -count:N on the command line overrides it
  *
  * Examples:
  *   zlastmod
  *   zlastmod ~/work -count:10
  *   zlastmod -Dskip=.git,target,*.class ~/work
+ *   zlastmod -Dcount=20 ~/work
  *
  * Configuration based on https://github.com/AdamBien/zcfg
  */
@@ -33,8 +35,10 @@ static String APP_NAME = MethodHandles.lookup().lookupClass().getName();
 static String PROPERTIES_FILE = "app.properties";
 static String SKIP_KEY = "skip";
 static String SKIP_DEFAULT = ".git,.DS_Store";
+static String COUNT_KEY = "count";
+static int COUNT_DEFAULT = 5;
 
-String version = "2026-11-09.1";
+String version = "2026-11-09.2";
 
 enum Log {
     ERROR(Color.BRIGHT_RED, System.err),
@@ -71,7 +75,7 @@ enum Log {
 }
 
 enum Arg {
-    COUNT("-count", "Number of files to show (default: 5)"),
+    COUNT("-count", "Number of files to show (overrides the count property, default: " + COUNT_DEFAULT + ")"),
     HELP("-help", "Show this help"),
     VERSION("-version", "Show version");
 
@@ -112,11 +116,12 @@ record Args(Path folder, int count) {}
 
 void main(String... args) throws Exception {
     Log.info(APP_NAME + " " + version);
+    applySystemProperties(args);
+    ZCfg.load(APP_NAME);
     var parsed = parseArgs(args);
     if (!Files.isDirectory(parsed.folder())) {
         Log.stop("Not a directory: " + parsed.folder());
     }
-    ZCfg.load(APP_NAME);
     var skip = skipMatchers(ZCfg.string(SKIP_KEY, SKIP_DEFAULT));
     var newest = findLastModified(parsed.folder(), parsed.count(), skip);
     if (newest.isEmpty()) {
@@ -129,10 +134,25 @@ void main(String... args) throws Exception {
     }
 }
 
+boolean systemProperty(String arg) {
+    return arg.startsWith("-D");
+}
+
+void applySystemProperties(String[] args) {
+    Stream.of(args)
+        .filter(this::systemProperty)
+        .forEach(arg -> {
+            var property = arg.substring(2).split("=", 2);
+            if (property[0].isEmpty()) Log.stop("Missing key in " + arg + ", expected -Dkey=value");
+            System.setProperty(property[0], property.length == 2 ? property[1] : "");
+        });
+}
+
 Args parseArgs(String[] args) {
     var folders = new ArrayList<String>();
-    var count = 5;
+    var count = parseCount(ZCfg.string(COUNT_KEY, String.valueOf(COUNT_DEFAULT)));
     for (var arg : args) {
+        if (systemProperty(arg)) continue;
         switch (Arg.from(arg)) {
             case COUNT -> count = parseCount(Arg.COUNT.value(arg));
             case HELP -> printUsage();
@@ -173,11 +193,12 @@ void printUsage() {
         Config sources (each overwrites previous):
           $HOME/.%1$s/%s
           ./%3$s
-          -D flags (e.g., -D%s=.git,target,*.class)
+          -D flags (e.g., -D%s=.git,target,*.class or -D%s=20)
 
         Configurable properties:
           %4$s=%s   comma-separated glob patterns; matching files and folders are skipped
-        """.formatted(APP_NAME, Arg.usage(), PROPERTIES_FILE, SKIP_KEY, SKIP_DEFAULT));
+          %5$s=%s               number of files to show; -count:N overrides it
+        """.formatted(APP_NAME, Arg.usage(), PROPERTIES_FILE, SKIP_KEY, COUNT_KEY, SKIP_DEFAULT, COUNT_DEFAULT));
     System.exit(0);
 }
 
