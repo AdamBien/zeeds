@@ -1,15 +1,40 @@
 #!/usr/bin/env -S java --source 25
 
+/**
+ * zlastmod - Prints the most recently modified files in a folder, searching all subfolders.
+ *
+ * Configuration is loaded from (each overwrites the previous):
+ *   1. $HOME/.zlastmod/app.properties  (global)
+ *   2. ./app.properties                (local, current directory)
+ *   3. -D system properties            (CLI overrides)
+ *
+ * Configurable properties:
+ *   skip=.git,.DS_Store   comma-separated glob patterns; matching files and folders are ignored
+ *
+ * Examples:
+ *   zlastmod
+ *   zlastmod ~/work -count:10
+ *   zlastmod -Dskip=.git,target,*.class ~/work
+ *
+ * Configuration based on https://github.com/AdamBien/zcfg
+ */
+
+import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.*;
 
-String name = MethodHandles.lookup().lookupClass().getName();
-String version = "2026-11-02.3";
+static String APP_NAME = MethodHandles.lookup().lookupClass().getName();
+static String PROPERTIES_FILE = "app.properties";
+static String SKIP_KEY = "skip";
+static String SKIP_DEFAULT = ".git,.DS_Store";
+
+String version = "2026-11-09.1";
 
 enum Log {
     ERROR(Color.BRIGHT_RED, System.err),
@@ -86,12 +111,14 @@ enum Arg {
 record Args(Path folder, int count) {}
 
 void main(String... args) throws Exception {
-    Log.info(name + " " + version);
+    Log.info(APP_NAME + " " + version);
     var parsed = parseArgs(args);
     if (!Files.isDirectory(parsed.folder())) {
         Log.stop("Not a directory: " + parsed.folder());
     }
-    var newest = findLastModified(parsed.folder(), parsed.count());
+    ZCfg.load(APP_NAME);
+    var skip = skipMatchers(ZCfg.string(SKIP_KEY, SKIP_DEFAULT));
+    var newest = findLastModified(parsed.folder(), parsed.count(), skip);
     if (newest.isEmpty()) {
         Log.stop("No files found in " + parsed.folder());
     }
@@ -142,17 +169,57 @@ void printUsage() {
 
         Options:
         %s
-        """.formatted(name, Arg.usage()));
+
+        Config sources (each overwrites previous):
+          $HOME/.%1$s/%s
+          ./%3$s
+          -D flags (e.g., -D%s=.git,target,*.class)
+
+        Configurable properties:
+          %4$s=%s   comma-separated glob patterns; matching files and folders are skipped
+        """.formatted(APP_NAME, Arg.usage(), PROPERTIES_FILE, SKIP_KEY, SKIP_DEFAULT));
     System.exit(0);
 }
 
-List<Path> findLastModified(Path folder, int count) throws Exception {
-    try (var files = Files.walk(folder)) {
-        return files.filter(Files::isRegularFile)
-                .sorted(Comparator.comparing(this::lastModified).reversed())
-                .limit(count)
-                .toList();
-    }
+List<PathMatcher> skipMatchers(String patterns) {
+    var fileSystem = FileSystems.getDefault();
+    return Stream.of(patterns.split(","))
+        .map(String::trim)
+        .filter(p -> !p.isEmpty())
+        .map(p -> fileSystem.getPathMatcher("glob:" + p))
+        .toList();
+}
+
+boolean skipped(Path path, List<PathMatcher> skip) {
+    var name = path.getFileName();
+    return name != null && skip.stream().anyMatch(m -> m.matches(name));
+}
+
+List<Path> findLastModified(Path folder, int count, List<PathMatcher> skip) throws IOException {
+    var files = new ArrayList<Path>();
+    Files.walkFileTree(folder, new SimpleFileVisitor<>() {
+        @Override
+        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+            return !dir.equals(folder) && skipped(dir, skip)
+                ? FileVisitResult.SKIP_SUBTREE
+                : FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+            if (attrs.isRegularFile() && !skipped(file, skip)) files.add(file);
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFileFailed(Path file, IOException e) {
+            return FileVisitResult.CONTINUE;
+        }
+    });
+    return files.stream()
+        .sorted(Comparator.comparing(this::lastModified).reversed())
+        .limit(count)
+        .toList();
 }
 
 FileTime lastModified(Path file) {
@@ -160,5 +227,43 @@ FileTime lastModified(Path file) {
         return Files.getLastModifiedTime(file);
     } catch (Exception e) {
         return FileTime.fromMillis(0);
+    }
+}
+
+class ZCfg {
+
+    static Properties CACHE;
+
+    static void load(String appName) {
+        CACHE = loadProperties(appName);
+    }
+
+    static Properties loadProperties(String appName) {
+        var properties = new Properties();
+        var userHome = System.getProperty("user.home");
+        var globalConfig = Path.of(userHome, "." + appName, PROPERTIES_FILE);
+        if (Files.exists(globalConfig))
+            loadFromFile(globalConfig, properties);
+        var localConfig = Path.of(PROPERTIES_FILE);
+        if (Files.exists(localConfig))
+            loadFromFile(localConfig, properties);
+        properties.putAll(System.getProperties());
+        return properties;
+    }
+
+    static void loadFromFile(Path file, Properties properties) {
+        try (var reader = Files.newBufferedReader(file)) {
+            properties.load(reader);
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot load properties from: " + file, e);
+        }
+    }
+
+    static String string(String key) {
+        return CACHE.getProperty(key);
+    }
+
+    static String string(String key, String defaultValue) {
+        return CACHE.getProperty(key, defaultValue);
     }
 }
