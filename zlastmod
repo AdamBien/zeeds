@@ -12,9 +12,14 @@
  *   skip=.git,.DS_Store   comma-separated glob patterns; matching files and folders are ignored
  *   count=5               number of files to show; -count:N on the command line overrides it
  *
+ * Options:
+ *   -count:N              number of files to show
+ *   -ending:SUFFIX        only consider files whose name ends with SUFFIX (e.g. -ending:.java)
+ *
  * Examples:
  *   zlastmod
  *   zlastmod ~/work -count:10
+ *   zlastmod ~/work -ending:.java
  *   zlastmod -Dskip=.git,target,*.class ~/work
  *   zlastmod -Dcount=20 ~/work
  *
@@ -23,6 +28,7 @@
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.StringReader;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
@@ -37,8 +43,9 @@ static String SKIP_KEY = "skip";
 static String SKIP_DEFAULT = ".git,.DS_Store";
 static String COUNT_KEY = "count";
 static int COUNT_DEFAULT = 5;
+static String SYSTEM_PROPERTY_PREFIX = "-D";
 
-String version = "2026-11-09.2";
+String version = "2026-11-15.1";
 
 enum Log {
     ERROR(Color.BRIGHT_RED, System.err),
@@ -75,7 +82,8 @@ enum Log {
 }
 
 enum Arg {
-    COUNT("-count", "Number of files to show (overrides the count property, default: " + COUNT_DEFAULT + ")"),
+    COUNT("-count", "Number of files to show (overrides the count property, default: %d)".formatted(COUNT_DEFAULT)),
+    ENDING("-ending", "Only consider files whose name ends with the given suffix (e.g. -ending:.java)"),
     HELP("-help", "Show this help"),
     VERSION("-version", "Show version");
 
@@ -112,7 +120,7 @@ enum Arg {
     }
 }
 
-record Args(Path folder, int count) {}
+record Args(Path folder, int count, String ending) {}
 
 void main(String... args) throws Exception {
     Log.info(APP_NAME + " " + version);
@@ -123,9 +131,10 @@ void main(String... args) throws Exception {
         Log.stop("Not a directory: " + parsed.folder());
     }
     var skip = skipMatchers(ZCfg.string(SKIP_KEY, SKIP_DEFAULT));
-    var newest = findLastModified(parsed.folder(), parsed.count(), skip);
+    var newest = findLastModified(parsed.folder(), parsed.count(), skip, parsed.ending());
     if (newest.isEmpty()) {
-        Log.stop("No files found in " + parsed.folder());
+        var suffix = parsed.ending().isEmpty() ? "" : " ending with " + parsed.ending();
+        Log.stop("No files" + suffix + " found in " + parsed.folder());
     }
     var formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     for (var file : newest) {
@@ -134,27 +143,37 @@ void main(String... args) throws Exception {
     }
 }
 
-boolean systemProperty(String arg) {
-    return arg.startsWith("-D");
+boolean isSystemProperty(String arg) {
+    return arg.startsWith(SYSTEM_PROPERTY_PREFIX);
 }
 
-void applySystemProperties(String[] args) {
-    Stream.of(args)
-        .filter(this::systemProperty)
-        .forEach(arg -> {
-            var property = arg.substring(2).split("=", 2);
-            if (property[0].isEmpty()) Log.stop("Missing key in " + arg + ", expected -Dkey=value");
-            System.setProperty(property[0], property.length == 2 ? property[1] : "");
-        });
+String propertyDefinition(String arg) {
+    return arg.substring(SYSTEM_PROPERTY_PREFIX.length());
+}
+
+void applySystemProperties(String[] args) throws IOException {
+    var definitions = Stream.of(args)
+        .filter(this::isSystemProperty)
+        .map(this::propertyDefinition)
+        .collect(Collectors.joining("\n"));
+    var properties = new Properties();
+    properties.load(new StringReader(definitions));
+    System.getProperties().putAll(properties);
+}
+
+int configuredCount() {
+    return parseCount(ZCfg.string(COUNT_KEY, String.valueOf(COUNT_DEFAULT)));
 }
 
 Args parseArgs(String[] args) {
     var folders = new ArrayList<String>();
-    var count = parseCount(ZCfg.string(COUNT_KEY, String.valueOf(COUNT_DEFAULT)));
+    var count = configuredCount();
+    var ending = "";
     for (var arg : args) {
-        if (systemProperty(arg)) continue;
+        if (isSystemProperty(arg)) continue;
         switch (Arg.from(arg)) {
             case COUNT -> count = parseCount(Arg.COUNT.value(arg));
+            case ENDING -> ending = parseEnding(Arg.ENDING.value(arg));
             case HELP -> printUsage();
             case VERSION -> System.exit(0);
             case null -> {
@@ -166,7 +185,7 @@ Args parseArgs(String[] args) {
     if (folders.size() > 1) {
         Log.stop("Expected at most one folder, got: " + folders);
     }
-    return new Args(Path.of(folders.isEmpty() ? "." : folders.getFirst()), count);
+    return new Args(Path.of(folders.isEmpty() ? "." : folders.getFirst()), count, ending);
 }
 
 int parseCount(String value) {
@@ -180,12 +199,18 @@ int parseCount(String value) {
     }
 }
 
+String parseEnding(String value) {
+    if (value.isBlank()) Log.stop("Ending must not be empty, expected " + Arg.ENDING.option + ":SUFFIX");
+    return value;
+}
+
 void printUsage() {
     Log.user("""
-        Usage: %s [folder] [-count:N]
+        Usage: %s [folder] [-count:N] [-ending:SUFFIX]
 
         Prints the most recently modified files in folder (default: current directory),
-        searching all subfolders. Newest first.
+        searching all subfolders. Newest first. With -ending:SUFFIX only files whose
+        name ends with SUFFIX are considered (e.g. -ending:.java).
 
         Options:
         %s
@@ -216,7 +241,11 @@ boolean skipped(Path path, List<PathMatcher> skip) {
     return name != null && skip.stream().anyMatch(m -> m.matches(name));
 }
 
-List<Path> findLastModified(Path folder, int count, List<PathMatcher> skip) throws IOException {
+boolean endsWith(Path file, String ending) {
+    return ending.isEmpty() || file.getFileName().toString().endsWith(ending);
+}
+
+List<Path> findLastModified(Path folder, int count, List<PathMatcher> skip, String ending) throws IOException {
     var files = new ArrayList<Path>();
     Files.walkFileTree(folder, new SimpleFileVisitor<>() {
         @Override
@@ -228,7 +257,7 @@ List<Path> findLastModified(Path folder, int count, List<PathMatcher> skip) thro
 
         @Override
         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-            if (attrs.isRegularFile() && !skipped(file, skip)) files.add(file);
+            if (attrs.isRegularFile() && !skipped(file, skip) && endsWith(file, ending)) files.add(file);
             return FileVisitResult.CONTINUE;
         }
 
