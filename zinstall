@@ -1,0 +1,89 @@
+#!/usr/bin/env -S java --source 25
+
+import java.lang.invoke.MethodHandles;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.util.List;
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-11-18.1";
+String shebang = "#!/usr/bin/env -S java --source 25";
+String usage = """
+        Usage: %1$s <script> [targetDir]
+               %1$s --all [targetDir]
+          Links Java scripts from the current directory into targetDir
+          (default /usr/local/bin). Existing links with the same name are replaced.
+          <script>   Install one script
+          --all      Install all Java scripts in the current directory
+          --help     Show this help
+          --version  Show version
+        """.formatted(name);
+
+void main(String... args) throws Exception {
+    if (args.length == 0) {
+        System.err.println(usage);
+        System.exit(1);
+    }
+    if (args[0].equals("--help")) {
+        IO.println(usage);
+        return;
+    }
+    if (args[0].equals("--version")) {
+        IO.println(name + " " + version);
+        return;
+    }
+    Path source = Path.of("").toAbsolutePath();
+    Path target = Path.of(args.length > 1 ? args[1] : "/usr/local/bin");
+    if (!Files.isDirectory(target)) {
+        System.err.println(name + ": target directory does not exist: " + target);
+        System.exit(1);
+    }
+    List<Path> scripts;
+    if (args[0].equals("--all")) {
+        try (var files = Files.list(source)) {
+            scripts = files.filter(file -> isJavaScript(file)).sorted().toList();
+        }
+    } else {
+        Path script = source.resolve(args[0]);
+        if (!isJavaScript(script)) {
+            System.err.println(name + ": not an executable Java script: " + script);
+            System.exit(1);
+        }
+        scripts = List.of(script);
+    }
+    int failures = 0;
+    for (Path script : scripts) {
+        Path link = target.resolve(script.getFileName());
+        try {
+            if (Files.isSymbolicLink(link)) {
+                Files.deleteIfExists(link);
+            }
+            Files.createSymbolicLink(link, script);
+            IO.println(script.getFileName() + " -> " + link);
+        } catch (AccessDeniedException e) {
+            System.err.println(name + ": permission denied for " + link + ", rerun with sudo");
+            failures++;
+        } catch (FileAlreadyExistsException e) {
+            System.err.println(name + ": " + link + " exists and is not a symbolic link, skipping");
+            failures++;
+        }
+    }
+    if (failures > 0) {
+        System.exit(1);
+    }
+}
+
+boolean isJavaScript(Path file) {
+    if (!Files.isRegularFile(file) || !Files.isExecutable(file)) {
+        return false;
+    }
+    try (BufferedReader reader = Files.newBufferedReader(file)) {
+        return shebang.equals(reader.readLine());
+    } catch (IOException e) {
+        return false;
+    }
+}
