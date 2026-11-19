@@ -1,45 +1,59 @@
 #!/usr/bin/env -S java --source 25
 
 String name = MethodHandles.lookup().lookupClass().getName();
-String version = "2026-11-19.1";
+String version = "2026-11-19.2";
 String shebang = "#!/usr/bin/env -S java --source 25";
 String usage = """
         Usage: %1$s <script> [targetDir]
                %1$s -all [targetDir]
+               %1$s -remove <script> [targetDir]
           Links Java scripts from the current directory into targetDir
           (default /usr/local/bin). Existing links with the same name are replaced.
           <script>   Install one script
           -all       Install all Java scripts in the current directory
+          -remove    Delete the link of one script from targetDir
           -help      Show this help
           -version   Show version
         """.formatted(name);
 
 void main(String... args) throws Exception {
     IO.println(name + " " + version);
-    if (args.length == 0) {
+    List<String> arguments = List.of(args);
+    if (arguments.isEmpty()) {
         System.err.println(usage);
         System.exit(1);
     }
-    if (args[0].equals("-help")) {
+    if (arguments.getFirst().equals("-help")) {
         IO.println(usage);
         return;
     }
-    if (args[0].equals("-version")) {
+    if (arguments.getFirst().equals("-version")) {
         return;
     }
+    boolean remove = arguments.getFirst().equals("-remove");
+    if (remove) {
+        arguments = arguments.subList(1, arguments.size());
+        if (arguments.isEmpty()) {
+            System.err.println(name + ": -remove requires a script name");
+            System.exit(1);
+        }
+    }
     Path source = Path.of("").toAbsolutePath();
-    Path target = Path.of(args.length > 1 ? args[1] : "/usr/local/bin");
+    Path target = Path.of(arguments.size() > 1 ? arguments.get(1) : "/usr/local/bin");
     if (!Files.isDirectory(target)) {
         System.err.println(name + ": target directory does not exist: " + target);
         System.exit(1);
     }
+    if (remove) {
+        System.exit(removeLink(target.resolve(arguments.getFirst())) ? 0 : 1);
+    }
     List<Path> scripts;
-    if (args[0].equals("-all")) {
+    if (arguments.getFirst().equals("-all")) {
         try (var files = Files.list(source)) {
             scripts = files.filter(this::isJavaSourceScript).sorted().toList();
         }
     } else {
-        Path script = source.resolve(args[0]);
+        Path script = source.resolve(arguments.getFirst());
         if (!isJavaSourceScript(script)) {
             System.err.println(name + ": not an executable Java script: " + script);
             System.exit(1);
@@ -71,6 +85,25 @@ boolean install(Path script, Path target) {
         return false;
     } catch (IOException e) {
         System.err.println(name + ": cannot link " + link + ": " + e.getMessage());
+        return false;
+    }
+}
+
+boolean removeLink(Path link) {
+    if (!Files.isSymbolicLink(link)) {
+        String reason = Files.exists(link) ? "is not a symbolic link" : "does not exist";
+        System.err.println(name + ": " + link + " " + reason + ", nothing removed");
+        return false;
+    }
+    try {
+        Files.delete(link);
+        IO.println("removed " + link);
+        return true;
+    } catch (AccessDeniedException _) {
+        System.err.println(name + ": permission denied for " + link + ", rerun with sudo");
+        return false;
+    } catch (IOException e) {
+        System.err.println(name + ": cannot remove " + link + ": " + e.getMessage());
         return false;
     }
 }
