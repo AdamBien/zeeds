@@ -1,0 +1,116 @@
+#!/usr/bin/env -S java --source 25
+
+String name = MethodHandles.lookup().lookupClass().getName();
+String version = "2026-11-21.1";
+String VERSION_SEPARATOR = "_v";
+
+record Request(Path source, Path destination, String folderName, String suffix) {
+
+    static final String NAME_OPTION = "-name";
+    static final String SUFFIX_OPTION = "-suffix";
+    static final Set<String> OPTIONS = Set.of(NAME_OPTION, SUFFIX_OPTION);
+
+    static Request from(List<String> args) {
+        var positional = new ArrayList<String>();
+        var options = new HashMap<String, String>();
+        for (var i = 0; i < args.size(); i++) {
+            var arg = args.get(i);
+            if (!OPTIONS.contains(arg)) {
+                positional.add(arg);
+                continue;
+            }
+            if (i + 1 >= args.size()) {
+                throw new IllegalArgumentException(arg + " requires a value");
+            }
+            options.put(arg, args.get(++i));
+        }
+        if (positional.size() != 2) {
+            throw new IllegalArgumentException("Expected <source-folder> and <destination-path>, got " + positional);
+        }
+        var source = Path.of(positional.get(0)).toAbsolutePath().normalize();
+        var destination = Path.of(positional.get(1)).toAbsolutePath().normalize();
+        var folderName = options.getOrDefault(NAME_OPTION, source.getFileName().toString());
+        var suffix = options.getOrDefault(SUFFIX_OPTION, "");
+        return new Request(source, destination, folderName, suffix);
+    }
+
+    String baseName() {
+        return this.folderName + this.suffix;
+    }
+}
+
+void main(String... args) throws Exception {
+    IO.println(name + " " + version);
+    var arguments = List.of(args);
+    if (arguments.isEmpty() || arguments.contains("-help")) {
+        IO.println("""
+                Usage: %s <source-folder> <destination-path> [options]
+                  Copies <source-folder> into <destination-path> as [NAME][SUFFIX].
+                  If that folder exists, %s1, %s2, ... is appended.
+                  -name <name>      Target folder name (default: source folder name)
+                  -suffix <suffix>  Suffix appended to the name (default: none)
+                  -help             Show this help
+                  -version          Show version
+                """.formatted(name, VERSION_SEPARATOR, VERSION_SEPARATOR));
+        return;
+    }
+    if (arguments.contains("-version")) {
+        return;
+    }
+    Request request;
+    try {
+        request = Request.from(arguments);
+    } catch (IllegalArgumentException e) {
+        System.err.println(e.getMessage());
+        System.exit(1);
+        return;
+    }
+    if (!Files.isDirectory(request.source())) {
+        System.err.println("Not a directory: " + request.source());
+        System.exit(1);
+    }
+    if (request.destination().startsWith(request.source())) {
+        System.err.println("Destination must not be inside the source: " + request.destination());
+        System.exit(1);
+    }
+    var target = availableTarget(request);
+    copy(request.source(), target);
+    IO.println("Copied " + request.source() + " to " + target);
+}
+
+Path availableTarget(Request request) {
+    var base = request.destination().resolve(request.baseName());
+    return Stream.iterate(1, counter -> counter + 1)
+            .map(counter -> base.resolveSibling(request.baseName() + VERSION_SEPARATOR + counter))
+            .filter(Files::notExists)
+            .findFirst()
+            .filter(_ -> Files.exists(base))
+            .orElse(base);
+}
+
+void copy(Path source, Path target) throws IOException {
+    Files.createDirectories(target);
+    try (var entries = Files.walk(source)) {
+        var failures = entries
+                .map(entry -> copyEntry(source, target, entry))
+                .flatMap(Optional::stream)
+                .toList();
+        if (!failures.isEmpty()) {
+            throw new IOException(String.join("\n", failures));
+        }
+    }
+}
+
+Optional<String> copyEntry(Path source, Path target, Path entry) {
+    var destination = target.resolve(source.relativize(entry));
+    try {
+        if (Files.isDirectory(entry)) {
+            Files.createDirectories(destination);
+        } else {
+            Files.copy(entry, destination, StandardCopyOption.COPY_ATTRIBUTES);
+        }
+        return Optional.empty();
+    } catch (IOException e) {
+        return Optional.of("Failed to copy " + entry + ": " + e.getMessage());
+    }
+}

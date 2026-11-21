@@ -12,6 +12,7 @@ Only Java 25+ is required, no external dependencies.
 
 - [**zhello**](zhello) — The simplest possible Java 25 script, ideal as a starting point. Usage: `./zhello`
 - [**zcpdir**](zcpdir) — Copy a directory recursively. Usage: `./zcpdir <source-directory> [target-directory]`
+- [**zcpv**](zcpv) — Copy a directory to a destination as `[NAME][SUFFIX]`, appending `_v1`, `_v2`, ... if it already exists. Usage: `./zcpv <source-folder> <destination-path> [-name <name>] [-suffix <suffix>]`
 - [**zcbs**](zcbs) — Save clipboard content to a file. Usage: `./zcbs <filename>`
 - [**zecho**](zecho) — Echo text with colored output. Usage: `./zecho <text>`
 - [**zwrap**](zwrap) — Wrap a Java script with additional parameters. Usage: `./zwrap <script> [args...]`
