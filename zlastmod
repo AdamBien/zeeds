@@ -10,7 +10,7 @@
  *
  * Configurable properties:
  *   skip=.git,.DS_Store   comma-separated glob patterns; matching files and folders are ignored
- *   count=5               number of files to show; -count:N on the command line overrides it
+ *   count=20              number of files to show; -count:N on the command line overrides it
  *
  * Options:
  *   -count:N              number of files to show
@@ -42,10 +42,10 @@ static String PROPERTIES_FILE = "app.properties";
 static String SKIP_KEY = "skip";
 static String SKIP_DEFAULT = ".git,.DS_Store";
 static String COUNT_KEY = "count";
-static int COUNT_DEFAULT = 5;
+static int COUNT_DEFAULT = 20;
 static String SYSTEM_PROPERTY_PREFIX = "-D";
 
-String version = "2026-11-15.1";
+String version = "2026-11-15.2";
 
 enum Log {
     ERROR(Color.BRIGHT_RED, System.err),
